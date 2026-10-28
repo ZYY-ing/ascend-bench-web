@@ -45,7 +45,7 @@ vLLM 服务所在容器需要（只读即可）：
 **方式 A（推荐，一条命令）**：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@372556a3dfa8/fetch-ascend-bench.sh -o f.sh
+curl -fsSL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@0b0af5898f92/fetch-ascend-bench.sh -o f.sh
 bash f.sh <测试容器名> <容器内持久化项目目录>
 ```
 
@@ -114,7 +114,7 @@ bash ascend-bench-kit/setup.sh <容器名> <项目目录> "" 18788   # 方式 B�
 |---|---|
 | jsdelivr CDN（国内快，约 16 秒） | `https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@171ba17496db/dist/ascend-bench-kit.tar.gz` |
 | GitHub Release（固定 latest 链接） | `https://github.com/ZYY-ing/ascend-bench-toolkit/releases/latest/download/ascend-bench-kit.tar.gz` |
-| 一键安装脚本 | `https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@372556a3dfa8/fetch-ascend-bench.sh` |
+| 一键安装脚本 | `https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@0b0af5898f92/fetch-ascend-bench.sh` |
 
 `fetch-ascend-bench.sh` 的下载自动降级顺序：jsdelivr CDN → GitHub API 资产端点 → 内网镜像（`http://192.168.13.198:8001/`），全部失败才报错。
 
