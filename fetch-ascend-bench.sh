@@ -2,7 +2,7 @@
 # 一键下载并安装 Ascend Bench（用户自行执行，无需登录）。
 # 下载自适应：先直连（快速超时），失败再走代理（代理地址从环境变量读，不写死）。
 #   可选环境变量：
-#     ASCEND_BENCH_DOWNLOAD_PROXY=http://<代理IP:端口>   内网下载代理（代理一直变，改这个变量即可）
+#     ASCEND_BENCH_PROXY=http://<代理IP:端口>   内网下载代理（代理一直变，改这个变量即可）
 #     ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple     pip 源（默认阿里云）
 # 用法: bash fetch-ascend-bench.sh <测试容器名> <容器内持久化项目目录> [Runner端口,默认18787]
 set -euo pipefail
@@ -10,7 +10,7 @@ CONTAINER="${1:?用法: bash fetch-ascend-bench.sh <测试容器名> <容器内�
 TARGET="${2:?缺少容器内持久化项目目录}"
 PORT="${3:-18787}"
 REPO="ZYY-ing/ascend-bench-web"
-PROXY="${ASCEND_BENCH_DOWNLOAD_PROXY:-}"
+PROXY="${ASCEND_BENCH_PROXY:-}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -68,7 +68,7 @@ except Exception:
     echo "== GitHub API 不可达"
   fi
 fi
-[ "$OK" = 1 ] || { echo "所有下载途径均失败。内网环境请 export ASCEND_BENCH_DOWNLOAD_PROXY=http://<代理IP:端口> 后重试；或手动下载压缩包后：tar xzf ascend-bench-kit.tar.gz && bash ascend-bench-kit/setup.sh $CONTAINER $TARGET"; exit 1; }
+[ "$OK" = 1 ] || { echo "所有下载途径均失败。内网环境请 export ASCEND_BENCH_PROXY=http://<代理IP:端口> 后重试；或手动下载压缩包后：tar xzf ascend-bench-kit.tar.gz && bash ascend-bench-kit/setup.sh $CONTAINER $TARGET"; exit 1; }
 
 echo "== 解压并开始安装（容器 $CONTAINER → $TARGET，Runner 端口 $PORT）"
 tar xzf "$WORK/ascend-bench-kit.tar.gz" -C "$WORK"
