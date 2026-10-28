@@ -80,6 +80,45 @@ ssh -N -o ExitOnForwardFailure=yes -L 18787:127.0.0.1:18787 <SSH用户>@<服务�
 
 ---
 
+## 脚本参数说明
+
+### fetch-ascend-bench.sh（f.sh）—— 下载 + 安装
+
+```bash
+bash f.sh <测试容器名> <容器内持久化项目目录> [Runner端口,默认18787]
+```
+
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| `<测试容器名>` | 是 | 部署 Runner 的测试容器名（host 网络） |
+| `<容器内持久化项目目录>` | 是 | 容器内持久化 RW 挂载的 Linux 绝对路径，如 `/home/aisbench_web` |
+| `[Runner端口]` | 否 | Runner 在容器内监听的回环端口，默认 `18787` |
+
+环境变量（可选，都不设即外网行为）：
+
+| 变量 | 说明 |
+|---|---|
+| `ASCEND_BENCH_PROXY` | 内网下载代理，如 `http://141.2.239.180:3128`（curl 下载 + pip 安装共用） |
+| `ASCEND_BENCH_PIP_INDEX` | pip 源，默认 `https://mirrors.aliyun.com/pypi/simple` |
+| `ASCEND_BENCH_EXTRA_HOSTS` | 可选，格式 `"IP 域名"`，写入容器 /etc/hosts（解析不了内网源域名时） |
+
+### setup.sh —— 只安装（不做任何下载）
+
+```bash
+bash setup.sh <测试容器名> <容器内持久化项目目录> [已有ais_bench绝对路径] [Runner端口,默认18787]
+```
+
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| `<测试容器名>` | 是 | 测试容器名 |
+| `<容器内持久化项目目录>` | 是 | 容器内持久化 RW 挂载的 Linux 绝对路径 |
+| `[已有ais_bench绝对路径]` | 否 | 已有 AISBench 环境时复用（跳过安装）；留空则自动装到 `<项目目录>/bench-venv` |
+| `[Runner端口]` | 否 | 默认 `18787` |
+
+环境变量：同 fetch-ascend-bench.sh（`ASCEND_BENCH_PROXY` / `ASCEND_BENCH_PIP_INDEX` / `ASCEND_BENCH_EXTRA_HOSTS`）。
+
+---
+
 ## 怎么在服务器上下载这个仓库的文件
 
 压缩包固定地址（任选其一，都是同一份文件）：
@@ -173,6 +212,34 @@ ssh -N -L 18789:127.0.0.1:18787 <用户>@<机器3>   # 标签页3: http://127.0.
 ```
 
 > 本地端口随便选（18787/18788/18789…），远端端口固定写各台机器的 18787。Runner 只接受回环访问，任意本地端口都行。
+
+## 停止 / 启动 / 更新 Runner（原始命令，无脚本）
+
+以下命令都在宿主机执行，`<容器名>`、`<项目目录>` 就是安装时传的那两个，`<端口>` 换成你要的（默认 `18787`）。
+
+**停止 Runner**
+
+```bash
+docker exec <容器名> pkill -f '[r]unner.py'
+```
+
+**在指定端口启动 Runner**
+
+```bash
+docker exec -d -e ASCEND_BENCH_HOME=<项目目录> -e ASCEND_BENCH_CONTAINER=<容器名> -e ASCEND_BENCH_PORT=<端口> <容器名> bash <项目目录>/scripts/start-runner.sh
+```
+
+**验证是否起来（返回 200 即成功）**
+
+```bash
+docker exec <容器名> curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:<端口>/
+```
+
+三种常见情况，各对应上面几条命令：
+
+- **代码更新了，拉最新代码重新部署**：先 `docker exec <容器名> pkill -f '[r]unner.py'` 停掉旧 runner，再 `bash f.sh <容器名> <项目目录>`（见「升级到新版本」）。
+- **容器之前停了，重新进容器部署**：`docker start <容器名>` 启动容器，再用「在指定端口启动」命令拉起 Runner。文件都在持久化挂载上，不用重装。
+- **手动 pkill 过，只想重新拉起**：直接跑「在指定端口启动」命令即可。
 
 ## 容器删除/停止后的恢复（不用重装）
 
