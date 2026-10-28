@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # 一键下载并安装 Ascend Bench（用户自行执行，无需登录、无需特定服务器）。
-# 下载顺序：jsdelivr CDN → GitHub API 资产端点 → 备用镜像，每路最多重试 2 次。
+# 下载顺序：jsdelivr CDN → GitHub API 资产端点，每路最多重试 2 次。
 # 用法: bash fetch-ascend-bench.sh <测试容器名> <容器内持久化项目目录> [Runner端口,默认18787]
 # 例:   bash fetch-ascend-bench.sh z00949185-ascend-test-minimax-m3 /home/z00949185/ascend-test
 set -euo pipefail
 CONTAINER="${1:?用法: bash fetch-ascend-bench.sh <测试容器名> <容器内持久化项目目录> [Runner端口,默认18787]}"
 TARGET="${2:?缺少容器内持久化项目目录}"
 PORT="${3:-18787}"
-REPO="ZYY-ing/ascend-bench-toolkit"
+REPO="ZYY-ing/ascend-bench-web"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -37,7 +37,7 @@ OK=0
 # 1) jsdelivr CDN（国内快）
 if [ "$OK" = 0 ]; then
   echo "== 尝试 jsdelivr CDN 下载"
-  try_download "https://cdn.jsdelivr.net/gh/$REPO@49fcb3e1f1c0/dist/ascend-bench-kit.tar.gz" "$WORK/ascend-bench-kit.tar.gz" "" && OK=1 || echo "== jsdelivr 失败"
+  try_download "https://cdn.jsdelivr.net/gh/$REPO@main/dist/ascend-bench-kit.tar.gz" "$WORK/ascend-bench-kit.tar.gz" "" && OK=1 || echo "== jsdelivr 失败"
 fi
 # 2) GitHub API 资产端点（绕开主站，公开仓库免 token，较慢）
 if [ "$OK" = 0 ]; then
@@ -53,11 +53,6 @@ except Exception:
   else
     echo "== GitHub API 不可达"
   fi
-fi
-# 3) 备用镜像（内网 198，可选）
-if [ "$OK" = 0 ]; then
-  echo "== 尝试备用镜像下载"
-  try_download "http://192.168.13.198:8001/ascend-bench-kit.tar.gz" "$WORK/ascend-bench-kit.tar.gz" "" && OK=1 || echo "== 备用镜像失败"
 fi
 [ "$OK" = 1 ] || { echo "所有下载途径均失败。可手动下载压缩包后执行：tar xzf ascend-bench-kit.tar.gz && bash ascend-bench-kit/setup.sh $CONTAINER $TARGET"; exit 1; }
 
