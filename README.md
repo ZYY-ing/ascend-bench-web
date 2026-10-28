@@ -45,7 +45,7 @@ vLLM 服务所在容器需要（只读即可）：
 **方式 A（推荐，一条命令）**：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@1a0e97706bb6/fetch-ascend-bench.sh -o f.sh
+curl -fsSL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@2ba70a183c51/fetch-ascend-bench.sh -o f.sh
 bash f.sh <测试容器名> <容器内持久化项目目录>
 ```
 
@@ -54,7 +54,7 @@ bash f.sh <测试容器名> <容器内持久化项目目录>
 **方式 B（手动，拿到压缩包后）**：
 
 ```bash
-curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@1a0e97706bb6/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz
+curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@2ba70a183c51/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz
 tar xzf ascend-bench-kit.tar.gz
 bash ascend-bench-kit/setup.sh <测试容器名> <容器内持久化项目目录>
 ```
@@ -112,9 +112,9 @@ bash ascend-bench-kit/setup.sh <容器名> <项目目录> "" 18788   # 方式 B�
 
 | 通道 | 地址 |
 |---|---|
-| jsdelivr CDN（国内快，约 16 秒） | `https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@1a0e97706bb6/dist/ascend-bench-kit.tar.gz` |
+| jsdelivr CDN（国内快，约 16 秒） | `https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@2ba70a183c51/dist/ascend-bench-kit.tar.gz` |
 | GitHub Release（固定 latest 链接） | `https://github.com/ZYY-ing/ascend-bench-toolkit/releases/latest/download/ascend-bench-kit.tar.gz` |
-| 一键安装脚本 | `https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@1a0e97706bb6/fetch-ascend-bench.sh` |
+| 一键安装脚本 | `https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@2ba70a183c51/fetch-ascend-bench.sh` |
 
 `fetch-ascend-bench.sh` 的下载自动降级顺序：jsdelivr CDN → GitHub API 资产端点 → 内网镜像（`http://192.168.13.198:8001/`），全部失败才报错。
 
