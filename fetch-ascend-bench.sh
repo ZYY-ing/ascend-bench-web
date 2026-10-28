@@ -37,7 +37,7 @@ OK=0
 # 1) jsdelivr CDN（国内快）
 if [ "$OK" = 0 ]; then
   echo "== 尝试 jsdelivr CDN 下载"
-  try_download "https://cdn.jsdelivr.net/gh/$REPO@171ba17496db/dist/ascend-bench-kit.tar.gz" "$WORK/ascend-bench-kit.tar.gz" "" && OK=1 || echo "== jsdelivr 失败"
+  try_download "https://cdn.jsdelivr.net/gh/$REPO@8e36e1e1d3d8/dist/ascend-bench-kit.tar.gz" "$WORK/ascend-bench-kit.tar.gz" "" && OK=1 || echo "== jsdelivr 失败"
 fi
 # 2) GitHub API 资产端点（绕开主站，公开仓库免 token，较慢）
 if [ "$OK" = 0 ]; then
