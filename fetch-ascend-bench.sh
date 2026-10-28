@@ -47,5 +47,6 @@ if [ "$OK" = 0 ]; then
 fi
 [ "$OK" = 1 ] || { echo "所有下载途径均失败，请检查网络（需可达 cdn.jsdelivr.net / api.github.com / 192.168.13.198）"; exit 1; }
 
-echo "== 开始安装（容器 $CONTAINER → $TARGET）"
+echo "== 解压并开始安装（容器 $CONTAINER → $TARGET）"
+tar xzf "$WORK/ascend-bench-kit.tar.gz" -C "$WORK"
 bash "$WORK/ascend-bench-kit/setup.sh" "$CONTAINER" "$TARGET"
