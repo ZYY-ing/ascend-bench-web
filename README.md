@@ -90,28 +90,38 @@ ssh -N -o ExitOnForwardFailure=yes -L 18787:127.0.0.1:18787 <SSH用户>@<服务�
 | GitHub Release | `curl -fL https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/ascend-bench-kit.tar.gz -o k.tar.gz` | 固定 latest 链接 |
 | raw 直链 | `curl -fL https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o k.tar.gz` | 备用 |
 
-### 网络环境与代理（两种环境都支持）
+### 网络环境与代理（两种环境，脚本如下）
 
-脚本会自动区分外网/内网，通过两个环境变量适配：
-
-| 环境 | 需要做的 | 说明 |
-|---|---|---|
-| **外网直连**（普通服务器） | 什么都不用设 | 默认 jsdelivr CDN + 阿里云 pip 源 |
-| **内网代理**（华为内网等） | 设下面两个变量 | 下载走代理，pip 走内网源 |
-
-内网代理环境，在安装前先 `export`（可写进 `.bashrc`）：
+**情况一 · 外网直连（无需代理）**：什么都不用设，直接跑：
 
 ```bash
-export ASCEND_BENCH_DOWNLOAD_PROXY=http://<代理IP:端口>   # 例 http://141.2.239.180:3128，外网下载走它
-export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple    # 例 http://mirrors.tools.huawei.com/pypi/simple，pip 走内网源
+curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/fetch-ascend-bench.sh -o f.sh
+bash f.sh <测试容器名> <容器内持久化项目目录>
 ```
 
-变量说明：
+**情况二 · 内网代理**：先设一个代理变量（curl 下载和 pip 安装**共用这一套代理**），再跑：
 
-- `ASCEND_BENCH_DOWNLOAD_PROXY`：下载工具包时的代理。设了就走 `-x <代理> -k`（`-k` 跳过代理中间人证书，netentsec 类会拦 SSL）；不设就 `--noproxy '*'` 直连，自动绕开 shell 里可能失效的 `http_proxy` 变量。
-- `ASCEND_BENCH_PIP_INDEX`：pip 源。默认阿里云；内网环境换成华为内网源（`http://` 源会自动加 `trusted-host`）。pip 统一带 `timeout=30`，不再死等。
+```bash
+export ASCEND_BENCH_PROXY=http://<代理IP:端口>     # 一条命令，curl 和 pip 都走它
 
-> 排查口诀：下载卡住 → 先 `env | grep -i proxy` 看有没有打架的代理变量；外网直连超时 → 设 `ASCEND_BENCH_DOWNLOAD_PROXY` 走代理；pip 慢 → 设 `ASCEND_BENCH_PIP_INDEX` 走内网源。
+curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/fetch-ascend-bench.sh -o f.sh
+bash f.sh <测试容器名> <容器内持久化项目目录>
+```
+
+`ASCEND_BENCH_PROXY` 设了之后：
+
+- **下载（curl）**：`fetch-ascend-bench.sh` 会先直连快速试一次，失败自动走 `-x $ASCEND_BENCH_PROXY -k`（`-k` 跳过代理中间人证书，netentsec 类会拦 SSL）
+- **安装（pip）**：setup.sh 会把 `proxy = $ASCEND_BENCH_PROXY` 写进 pip 配置，pip 下载依赖也走这套代理
+
+可选：如果内网有更快的 pip 镜像（直连可达），再加一条：
+
+```bash
+export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple   # 可选，pip 走内网镜像（更快），http 源自动加 trusted-host
+```
+
+不设 `ASCEND_BENCH_PIP_INDEX` 时 pip 用默认的阿里云源（配合上面的代理走）。
+
+> 代理地址经常变？改 `ASCEND_BENCH_PROXY` 这一个变量即可，脚本一个字节都不用动。排查口诀：下载卡 → `env | grep -i proxy` 看有没有打架的旧代理变量（脚本里已用 `--noproxy '*'` 绕开）；pip 慢 → 设 `ASCEND_BENCH_PIP_INDEX` 走内网源。
 
 
 ---
