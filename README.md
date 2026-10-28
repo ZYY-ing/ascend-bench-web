@@ -1,150 +1,151 @@
-# ascend-bench-toolkit
+# Ascend Bench Web
 
-Ascend Bench 模型评测工作台部署工具包：给**已经拉起并验证过的 vLLM 服务**（Ascend 服务器）提供网页版精度 / 性能评测。浏览器操作，全程无需改代码。
+给**已经拉起并验证过的 vLLM 服务**（Ascend 服务器）提供的网页版模型评测工作台。浏览器操作，精度 / 性能测试全程无需改代码。
 
 ---
 
-## 前置条件（务必先满足）
+## 前提
 
-### 1. vLLM 服务已拉起并通过验证
+1. vLLM 服务已成功拉起，且服务器上以下两条命令**均返回正常**：
 
-在服务器上执行以下两条命令，**均返回正常**后再继续：
+   ```bash
+   curl http://<服务IP>:<端口>/health
+   curl http://<服务IP>:<端口>/v1/models
+   ```
 
-```bash
-curl http://<服务IP>:<端口>/health
-curl http://<服务IP>:<端口>/v1/models
-```
+   记下 `/v1/models` 返回的模型 id（served-model-name），网站步骤1 要用。
 
-记下 `/v1/models` 返回的模型 id（served-model-name），后面网站步骤1 要用。
+2. 有一台能运行 `docker` 的宿主机，以及一个 **host 网络**的测试容器。
 
-### 2. vLLM 服务的挂载要求
+---
 
-vLLM 服务所在容器需要（只读即可）：
+## 挂载要求（只读/已有即可，通常无需额外配置）
 
-| 挂载项 | 说明 |
-|---|---|
-| 模型权重目录 | 如 `/mnt/weight/home-weights/MiniMax-M3-w8a8` |
-| EAGLE3 草稿权重（用了投机解码时） | 如 `/mnt/share/weight/MiniMax-M3-EAGLE3-GQA` |
-| host 网络 | 服务端口直接对外 |
+**测试容器**（装本工具包的那个容器）需要：
 
-### 3. 测试容器的挂载要求（装本工具包的那个容器）
-
-- **host 网络**（Runner 需能被宿主机 SSH 隧道回环访问）
-- 一个**持久化 RW 挂载**的项目目录（容器内可见的 Linux 绝对路径）——安装命令里的 `<容器内持久化项目目录>` 指它，运行记录和结果都写在这里
+- **host 网络**：Runner 只监听容器内 127.0.0.1，靠宿主机 SSH 隧道回环访问
+- 一个**持久化 RW 目录**：安装命令里的 `<容器内持久化项目目录>`，宿主机和容器都要能看到它（bind-mount 或 `-v` 挂载），记录和结果都写在这里
 - 容器内有 `python3`、`curl`
-- 容器内能读到 **tokenizer / 权重路径**（网站步骤1 填写，用于生成测试数据和校验；只读挂载即可）
+- 容器内能读到 **tokenizer / 权重路径**（网站步骤1 填写，用于生成测试数据，只读挂载即可）
 
-> 测试容器可以和 vLLM 服务同一个容器，也可以是独立容器，只要能访问服务 API 和 tokenizer 路径即可。
+**vLLM 服务容器**（起服务的那个容器）需要：模型权重目录只读挂载即可（如 `/mnt/weight/...`）。这是起服务时本来就挂好的，**不需要为本工具额外挂任何东西**。
+
+> 说明：之前遇到的"重启 vLLM 后挂载"问题，不是加了新挂载——是我把项目目录 `rm -rf` 了但容器还 bind-mount 着它，导致挂载指向已删除的旧目录；`docker restart` 让容器重新解析了已有的 bind-mount 而已。
 
 ---
 
 ## 快速开始（3 步）
 
-### 第 1 步 · 服务器宿主机（一条命令：自动下载 + 安装 + 启动）
+### 第 1 步 · 服务器宿主机（下载 + 安装）
 
-**方式 A（推荐，一条命令）**：
+**方式 A · 一键（推荐）**：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@49fcb3e1f1c0/fetch-ascend-bench.sh -o f.sh
+curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/fetch-ascend-bench.sh -o f.sh
 bash f.sh <测试容器名> <容器内持久化项目目录>
 ```
 
-`f.sh`（即 `fetch-ascend-bench.sh`）会自动下载工具包压缩包、解压、安装 AISBench 环境、启动 Runner。
-
-**方式 B（手动，拿到压缩包后）**：
+**方式 B · 手动（先下压缩包再装）**：
 
 ```bash
-curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@49fcb3e1f1c0/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz
+curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz
 tar xzf ascend-bench-kit.tar.gz
 bash ascend-bench-kit/setup.sh <测试容器名> <容器内持久化项目目录>
 ```
 
-两种方式二选一。安装完成后脚本会打印**隧道命令、网站地址和 token 位置**。
-
-### 第 2 步 · 你的电脑（建立 SSH 隧道并登录）
+### 第 2 步 · 你的电脑（建隧道 + 登录）
 
 ```bash
 ssh -N -o ExitOnForwardFailure=yes -L 18787:127.0.0.1:18787 <SSH用户>@<服务器IP>
 ```
 
-保持隧道打开，浏览器访问 http://127.0.0.1:18787 ，粘贴 `<项目目录>/runner-token` 里的凭据登录。
+浏览器打开 http://127.0.0.1:18787，粘贴 `<项目目录>/runner-token` 里的凭据登录。
 
-### 第 3 步 · 网站内（3 个面板）
+### 第 3 步 · 网站内
 
-- **步骤1 · 连接推理服务**：填 服务 IP / 端口 / 模型名（`/v1/models` 返回值）/ tokenizer 路径 → 点「检查连接」——通过后自动保存到 Runner
-- **步骤2 · 选择数据集**：GSM8K / AIME2026 已随包携带；GPQA 为授权数据，把 `gpqa_diamond.csv` 放入 `<项目目录>/datasets/gpqa/` 后点「重新检查」
-- **步骤3 · 配置测试参数**：小批量验收建议 样本 4、并发 1、max_out_len ≥2048（思考型模型）→「开始真实测试」
-
-切换测试目标：改步骤1 面板的服务信息 → 重新点「检查连接」，无需改服务器文件。
+- **步骤1 连接推理服务**：填 服务 IP / 端口 / 模型名 / tokenizer 路径 → 检查连接（自动保存到 Runner）
+- **步骤2 选择数据集**：GSM8K / GPQA / AIME2026 已随包携带
+- **步骤3 配置参数**：样本数、并发、max_out_len → 开始测试
 
 ---
 
-## 耗时说明
+## 两个脚本的区别
 
-| 阶段 | 预计耗时 | 说明 |
+| 脚本 | 作用 |
+|---|---|
+| `fetch-ascend-bench.sh` | **下载 + 安装**。先下载压缩包、解压，再调用 setup.sh |
+| `setup.sh` | **只安装**。不做任何下载，只做环境检查、拷文件、建 AISBench 环境、起 Runner |
+
+所以：**有网直接跑方式 A（fetch）**；已经有解压好的 `ascend-bench-kit/` 目录时，只用 `bash ascend-bench-kit/setup.sh <容器> <目录>` 即可，不需要 fetch。
+
+---
+
+## 怎么在服务器上下载这个仓库的文件
+
+压缩包固定地址（任选其一，都是同一份文件）：
+
+| 通道 | 命令 | 特点 |
 |---|---|---|
-| 下载工具包（jsdelivr CDN） | **约 16 秒** | 压缩包 5.6 MB，实测 ~340 KB/s |
-| 首次安装（创建 venv + 安装 AISBench） | **约 3~5 分钟** | 需访问 pip 镜像；依赖大多已随容器存在，仅补装约 60 个包 |
-| vLLM 服务本身启动 | 约 10 分钟 | 与工具包无关，是模型加载 + 图编译 |
+| jsdelivr CDN | `curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/dist/ascend-bench-kit.tar.gz -o k.tar.gz` | 国内快，推荐 |
+| GitHub Release | `curl -fL https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/ascend-bench-kit.tar.gz -o k.tar.gz` | 固定 latest 链接 |
+| raw 直链 | `curl -fL https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o k.tar.gz` | 备用 |
 
-后续再次安装（同一容器 / 已有缓存）会明显更快。
+### 代理注意事项（下载慢/卡住的常见原因）
 
----
-
-## Runner 端口（默认 18787，可改）
-
-- Runner 默认监听**容器内 127.0.0.1:18787**（仅回环，只能通过 SSH 隧道访问，不对外暴露）
-- **18787 不是写死的**。如果安装时检测到该端口已被占用，脚本会**明确报错退出**（绝不杀别的进程）
-
-**换端口方法**——在安装命令最后追加一个端口号：
+如果下载卡住或极慢，多半是 shell 里设了代理。先查：
 
 ```bash
-bash f.sh <测试容器名> <项目目录> 18788        # 方式 A
-bash ascend-bench-kit/setup.sh <容器名> <项目目录> "" 18788   # 方式 B（第 3 参数 ais_bench 留空，第 4 参数是端口）
+env | grep -i proxy
 ```
 
-隧道命令同步改为：`ssh -N -L 18787:127.0.0.1:18788 <用户>@<服务器IP>`
-（`-L 本地端口:远端地址:远端端口`，本地端口随便填，远端端口写你选的 18788。）
+若 `http_proxy`/`https_proxy` 有值，两种解法任选：
+
+```bash
+# 解法1：本次下载绕过代理
+curl --noproxy '*' -fL <上面的下载地址> -o k.tar.gz
+
+# 解法2：清掉代理变量后再下
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
+```
+
+jsdelivr CDN 一般最快；GitHub 主站在部分网络环境下连不上时，用 jsdelivr 或 raw 即可。
 
 ---
 
-## 工具包下载地址（不依赖任何特定服务器）
+## 重复安装
 
-| 通道 | 地址 |
-|---|---|
-| jsdelivr CDN（国内快，约 16 秒） | `https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@49fcb3e1f1c0/dist/ascend-bench-kit.tar.gz` |
-| GitHub Release（固定 latest 链接） | `https://github.com/ZYY-ing/ascend-bench-toolkit/releases/latest/download/ascend-bench-kit.tar.gz` |
-| 一键安装脚本 | `https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@49fcb3e1f1c0/fetch-ascend-bench.sh` |
+**不用删任何文件**。直接再跑一遍安装命令即可：
 
-`fetch-ascend-bench.sh` 的下载自动降级顺序：jsdelivr CDN → GitHub API 资产端点 → 内网镜像（`http://192.168.13.198:8001/`），全部失败才报错。
+```bash
+docker exec <测试容器名> pkill -f '[r]unner.py'   # 停掉旧 runner（否则端口被占用会报错）
+bash f.sh <测试容器名> <项目目录>                  # 或 bash ascend-bench-kit/setup.sh ...
+```
+
+脚本会自动：备份旧的 scripts/website → 覆盖新文件 → 复用已有的 AISBench 环境（pip 对已装包显示"已满足"，很快）。历史测试记录（`results/jobs/`）保留不删。
+
+只有想彻底重装 AISBench 环境时才手动清：`docker exec <容器> rm -rf <项目目录>/bench-venv`。
+
+---
+
+## Runner 端口（默认 18787）
+
+- 默认监听容器内 `127.0.0.1:18787`（仅回环，经 SSH 隧道访问）
+- 被占用时脚本会报错退出（不杀进程）；在命令最后追加端口号换端口，如 `bash f.sh <容器> <目录> 18788`，隧道同步改为 `-L 18787:127.0.0.1:18788`
 
 ---
 
 ## 结果与文件
 
 ```
-<项目目录>/results/jobs/<任务ID>/
-    config.py        实际 AISBench 配置
-    command.txt      实际执行命令
-    execution.log    完整执行日志
-    output/          原始结果 / 性能表
-<项目目录>/logs/runner.log      Runner 日志
-<项目目录>/runner-token         网站登录凭据
+<项目目录>/results/jobs/<任务ID>/   config.py / command.txt / execution.log / output/
+<项目目录>/logs/runner.log          Runner 日志
+<项目目录>/runner-token             网站登录凭据
 ```
 
 ---
 
 ## 常见问题
 
-- **步骤1 检查连接失败**：先做前置条件里的两条 curl；确认 IP、模型 id 是 `/v1/models` 返回值；tokenizer 路径是**服务器（测试容器内）的路径**，不是电脑路径
-- **网站打不开**：检查隧道是否保持、Runner 是否在跑：`docker exec <容器> pgrep -f runner.py`，日志：`docker exec <容器> tail -20 <项目目录>/logs/runner.log`
-- **端口被占用**：见「Runner 端口」一节，换端口重装
-- **GPQA 未就绪**：授权数据不随包分发，自备 `gpqa_diamond.csv` 放入指定目录后重新检查
-
----
-
-## 仓库内容
-
-- `fetch-ascend-bench.sh` — 一键取包安装脚本（自动下载 + 解压 + 安装 + 启动）
-- `dist/ascend-bench-kit.tar.gz` — 部署工具包（网站 + Runner + AISBench 源码 + GSM8K/AIME2026 数据集）
-- GitHub Release 提供同内容的版本化资产
+- **步骤1 检查连接失败**：先做前提里两条 curl；IP、模型 id 是 `/v1/models` 返回值；tokenizer 是服务器上的路径
+- **网站打不开**：隧道是否保持、Runner 是否在跑（`docker exec <容器> pgrep -f runner.py`）
+- **下载卡住**：见「代理注意事项」，加 `--noproxy '*'`
