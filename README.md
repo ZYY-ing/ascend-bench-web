@@ -23,8 +23,8 @@ vLLM 服务所在容器需要（只读即可）：
 
 | 挂载项 | 说明 |
 |---|---|
-| 模型权重目录 | 如 `/xxx/MiniMax-M3` |
-| EAGLE3 草稿权重（用了投机解码时） | 如 `/xxx/weight/MiniMax-M3-EAGLE3-GQA` |
+| 模型权重目录 | 如 `/mnt/weight/home-weights/MiniMax-M3-w8a8` |
+| EAGLE3 草稿权重（用了投机解码时） | 如 `/mnt/share/weight/MiniMax-M3-EAGLE3-GQA` |
 | host 网络 | 服务端口直接对外 |
 
 ### 3. 测试容器的挂载要求（装本工具包的那个容器）
@@ -42,9 +42,7 @@ vLLM 服务所在容器需要（只读即可）：
 
 ### 第 1 步 · 服务器宿主机（一条命令：自动下载 + 安装 + 启动）
 
-推荐先配置代理或镜像源 下载安装更快
-
-**方式 A（直接执行fetch-ascend-bench.sh：下载压缩包之后安装，一条龙）**：
+**方式 A（推荐，一条命令）**：
 
 ```bash
 curl -fsSL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@2ba70a183c51/fetch-ascend-bench.sh -o f.sh
@@ -53,7 +51,7 @@ bash f.sh <测试容器名> <容器内持久化项目目录>
 
 `f.sh`（即 `fetch-ascend-bench.sh`）会自动下载工具包压缩包、解压、安装 AISBench 环境、启动 Runner。
 
-**方式 B（拿到/dist/ascend-bench-kit.tar.gz：解压后执行安装）**：
+**方式 B（手动，拿到压缩包后）**：
 
 ```bash
 curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@2ba70a183c51/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz
