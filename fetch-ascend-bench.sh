@@ -4,8 +4,9 @@
 # 用法: bash fetch-ascend-bench.sh <测试容器名> <容器内持久化项目目录>
 # 例:   bash fetch-ascend-bench.sh z00949185-ascend-test-minimax-m3 /home/z00949185/ascend-test
 set -euo pipefail
-CONTAINER="${1:?用法: bash fetch-ascend-bench.sh <测试容器名> <容器内持久化项目目录>}"
+CONTAINER="${1:?用法: bash fetch-ascend-bench.sh <测试容器名> <容器内持久化项目目录> [Runner端口,默认18787]}"
 TARGET="${2:?缺少容器内持久化项目目录}"
+PORT="${3:-18787}"
 REPO="ZYY-ing/ascend-bench-toolkit"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -47,6 +48,6 @@ if [ "$OK" = 0 ]; then
 fi
 [ "$OK" = 1 ] || { echo "所有下载途径均失败，请检查网络（需可达 cdn.jsdelivr.net / api.github.com / 192.168.13.198）"; exit 1; }
 
-echo "== 解压并开始安装（容器 $CONTAINER → $TARGET）"
+echo "== 解压并开始安装（容器 $CONTAINER → $TARGET，Runner 端口 $PORT）"
 tar xzf "$WORK/ascend-bench-kit.tar.gz" -C "$WORK"
-bash "$WORK/ascend-bench-kit/setup.sh" "$CONTAINER" "$TARGET"
+bash "$WORK/ascend-bench-kit/setup.sh" "$CONTAINER" "$TARGET" "" "$PORT"
