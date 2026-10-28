@@ -25,7 +25,7 @@ OK=0
 # 1) jsdelivr CDN（国内最快，约 16 秒）
 if [ "$OK" = 0 ]; then
   echo "== 尝试 jsdelivr CDN 下载"
-  if dl "https://cdn.jsdelivr.net/gh/$REPO@main/dist/ascend-bench-kit.tar.gz" "$WORK/ascend-bench-kit.tar.gz" "" 2>/dev/null \
+  if dl "https://cdn.jsdelivr.net/gh/$REPO@171ba17496db/dist/ascend-bench-kit.tar.gz" "$WORK/ascend-bench-kit.tar.gz" "" 2>/dev/null \
      && tar tzf "$WORK/ascend-bench-kit.tar.gz" >/dev/null 2>&1; then OK=1; else rm -f "$WORK/ascend-bench-kit.tar.gz"; fi
 fi
 # 2) GitHub API 资产端点（绕开被墙的主站，公开仓库免 token）
