@@ -18,7 +18,7 @@ Ascend Bench 模型评测工作台部署工具包：给**已经拉起并验证�
 ### 第 1 步 · 服务器宿主机（一条命令：自动下载 + 安装 + 启动）
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@main/fetch-ascend-bench.sh -o f.sh
+curl -fsSL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@4b15f016b8c3/fetch-ascend-bench.sh -o f.sh
 bash f.sh <测试容器名> <容器内持久化项目目录>
 ```
 
@@ -44,9 +44,9 @@ ssh -N -o ExitOnForwardFailure=yes -L 18787:127.0.0.1:18787 <SSH用户>@<服务�
 
 | 通道 | 地址 |
 |---|---|
-| jsdelivr CDN（国内快，约 16 秒） | `https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@main/dist/ascend-bench-kit.tar.gz` |
+| jsdelivr CDN（国内快，约 16 秒） | `https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@4b15f016b8c3/dist/ascend-bench-kit.tar.gz` |
 | GitHub Release（固定 latest 链接） | `https://github.com/ZYY-ing/ascend-bench-toolkit/releases/latest/download/ascend-bench-kit.tar.gz` |
-| 一键安装脚本 | `https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@main/fetch-ascend-bench.sh` |
+| 一键安装脚本 | `https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-toolkit@4b15f016b8c3/fetch-ascend-bench.sh` |
 
 fetch 脚本自动降级：jsdelivr CDN → GitHub API 资产端点 → 内网镜像（`http://192.168.13.198:8001/`），全部失败才报错。
 
