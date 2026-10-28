@@ -90,25 +90,29 @@ ssh -N -o ExitOnForwardFailure=yes -L 18787:127.0.0.1:18787 <SSH用户>@<服务�
 | GitHub Release | `curl -fL https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/ascend-bench-kit.tar.gz -o k.tar.gz` | 固定 latest 链接 |
 | raw 直链 | `curl -fL https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o k.tar.gz` | 备用 |
 
-### 代理注意事项（下载慢/卡住的常见原因）
+### 网络环境与代理（两种环境都支持）
 
-如果下载卡住或极慢，多半是 shell 里设了代理。先查：
+脚本会自动区分外网/内网，通过两个环境变量适配：
+
+| 环境 | 需要做的 | 说明 |
+|---|---|---|
+| **外网直连**（普通服务器） | 什么都不用设 | 默认 jsdelivr CDN + 阿里云 pip 源 |
+| **内网代理**（华为内网等） | 设下面两个变量 | 下载走代理，pip 走内网源 |
+
+内网代理环境，在安装前先 `export`（可写进 `.bashrc`）：
 
 ```bash
-env | grep -i proxy
+export ASCEND_BENCH_DOWNLOAD_PROXY=http://<代理IP:端口>   # 例 http://141.2.239.180:3128，外网下载走它
+export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple    # 例 http://mirrors.tools.huawei.com/pypi/simple，pip 走内网源
 ```
 
-若 `http_proxy`/`https_proxy` 有值，两种解法任选：
+变量说明：
 
-```bash
-# 解法1：本次下载绕过代理
-curl --noproxy '*' -fL <上面的下载地址> -o k.tar.gz
+- `ASCEND_BENCH_DOWNLOAD_PROXY`：下载工具包时的代理。设了就走 `-x <代理> -k`（`-k` 跳过代理中间人证书，netentsec 类会拦 SSL）；不设就 `--noproxy '*'` 直连，自动绕开 shell 里可能失效的 `http_proxy` 变量。
+- `ASCEND_BENCH_PIP_INDEX`：pip 源。默认阿里云；内网环境换成华为内网源（`http://` 源会自动加 `trusted-host`）。pip 统一带 `timeout=30`，不再死等。
 
-# 解法2：清掉代理变量后再下
-unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
-```
+> 排查口诀：下载卡住 → 先 `env | grep -i proxy` 看有没有打架的代理变量；外网直连超时 → 设 `ASCEND_BENCH_DOWNLOAD_PROXY` 走代理；pip 慢 → 设 `ASCEND_BENCH_PIP_INDEX` 走内网源。
 
-jsdelivr CDN 一般最快；GitHub 主站在部分网络环境下连不上时，用 jsdelivr 或 raw 即可。
 
 ---
 
@@ -155,4 +159,4 @@ bash f.sh <测试容器名> <项目目录>
 
 - **步骤1 检查连接失败**：先做前提里两条 curl；IP、模型 id 是 `/v1/models` 返回值；tokenizer 是服务器上的路径
 - **网站打不开**：隧道是否保持、Runner 是否在跑（`docker exec <容器> pgrep -f runner.py`）
-- **下载卡住**：见「代理注意事项」，加 `--noproxy '*'`
+- **下载卡住**：见「网络环境与代理」
