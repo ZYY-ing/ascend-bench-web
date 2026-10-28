@@ -92,19 +92,28 @@ ssh -N -o ExitOnForwardFailure=yes -L 18787:127.0.0.1:18787 <SSH用户>@<服务�
 
 ### 网络环境与代理（两种环境，脚本如下）
 
-**情况一 · 外网直连（无需代理）**：什么都不用设，直接跑：
+两套环境用**同一个** f.sh / setup.sh，区别只在环境变量；什么都不设就是外网行为。
+
+**情况一 · 外网直连（无需代理，零配置）**：
 
 ```bash
 curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/fetch-ascend-bench.sh -o f.sh
 bash f.sh <测试容器名> <容器内持久化项目目录>
 ```
 
-**情况二 · 内网代理**：先设一个代理变量（curl 下载和 pip 安装**共用这一套代理**），再跑：
+**情况二 · 内网代理（完整脚本，3 个变量 + 2 条命令）**：
 
 ```bash
-export ASCEND_BENCH_PROXY=http://<代理IP:端口>     # 一条命令，curl 和 pip 都走它
+# 1) 环境变量（代理、内网 pip 源、可选的内网域名解析）
+export ASCEND_BENCH_PROXY=http://<代理IP:端口>          # 例 141.2.239.180:3128，curl 下载和 pip 安装共用
+export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple  # 例 mirrors.tools.huawei.com，pip 走内网源
+export ASCEND_BENCH_EXTRA_HOSTS="<内网源IP> <内网源域名>" # 可选，容器解析不了内网域名时
 
-curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/fetch-ascend-bench.sh -o f.sh
+# 2) 下载脚本（第一次下载脚本本身也要走代理，用 GitHub Release 直链 + -k）
+curl -fL -x "$ASCEND_BENCH_PROXY" -k \
+  https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/fetch-ascend-bench.sh -o f.sh
+
+# 3) 安装（f.sh 内部：下载工具包先直连试、失败自动走 ASCEND_BENCH_PROXY；pip 走 ASCEND_BENCH_PIP_INDEX + proxy）
 bash f.sh <测试容器名> <容器内持久化项目目录>
 ```
 
