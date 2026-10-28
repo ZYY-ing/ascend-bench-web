@@ -30,6 +30,7 @@
 
 **vLLM 服务容器**（起服务的那个容器）需要：模型权重目录只读挂载即可（如 `/mnt/weight/...`）。这是起服务时本来就挂好的，**不需要为本工具额外挂任何东西**。
 
+> 说明：之前遇到的"重启 vLLM 后挂载"问题，不是加了新挂载——是我把项目目录 `rm -rf` 了但容器还 bind-mount 着它，导致挂载指向已删除的旧目录；`docker restart` 让容器重新解析了已有的 bind-mount 而已。
 
 ---
 
@@ -111,18 +112,25 @@ jsdelivr CDN 一般最快；GitHub 主站在部分网络环境下连不上时，
 
 ---
 
-## 重复安装
+## 升级到新版本（GitHub 更新后）
 
-**不用删任何文件**。直接再跑一遍安装命令即可：
+**不用删任何文件**。停掉旧 runner，重新下载并重跑安装即可：
 
 ```bash
 docker exec <测试容器名> pkill -f '[r]unner.py'   # 停掉旧 runner（否则端口被占用会报错）
-bash f.sh <测试容器名> <项目目录>                  # 或 bash ascend-bench-kit/setup.sh ...
+curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/fetch-ascend-bench.sh -o f.sh
+bash f.sh <测试容器名> <项目目录>
 ```
 
 脚本会自动：备份旧的 scripts/website → 覆盖新文件 → 复用已有的 AISBench 环境（pip 对已装包显示"已满足"，很快）。历史测试记录（`results/jobs/`）保留不删。
 
 只有想彻底重装 AISBench 环境时才手动清：`docker exec <容器> rm -rf <项目目录>/bench-venv`。
+
+## 迁移到其他服务器
+
+**不要直接拷贝安装好的文件夹**——bench-venv 里是 editable install + system-site-packages，绑定了原容器的 Python 路径和绝对路径，换个机器会坏。
+
+正确做法：压缩包只下一次，`scp` 到各台宿主机，每台跑一遍 `bash ascend-bench-kit/setup.sh <容器> <目录>`（或方式 A 的 fetch）。venv 每台单独装（约 3~5 分钟，匹配各自容器的 Python），网站步骤1 按各台机器的服务 IP 重新填写即可。
 
 ---
 
