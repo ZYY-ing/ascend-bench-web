@@ -227,6 +227,9 @@ docker exec <容器名> pkill -f '[r]unner.py'
 
 ```bash
 docker exec -e ASCEND_BENCH_HOME=<项目目录> -e ASCEND_BENCH_CONTAINER=<容器名> -e ASCEND_BENCH_PORT=<端口> <容器名> bash <项目目录>/scripts/start-runner.sh
+
+docker exec z00949185-ascend-test-minimax-m3 pkill -f '[r]unner.py'
+docker exec -e ASCEND_BENCH_HOME=/home/z00949185/ascend-test -e ASCEND_BENCH_CONTAINER=z00949185-ascend-test-minimax-m3 -e ASCEND_BENCH_PORT=18787 z00949185-ascend-test-minimax-m3 bash /home/z00949185/ascend-test/scripts/start-runner.sh
 ```
 
 **验证是否起来（返回 200 即成功）**
