@@ -18,10 +18,10 @@ dl() { # $1=url $2=out $3=header $4=proxy(可空)
   local proxy="$4"
   if [ -n "$proxy" ]; then
     echo "  ↓ 下载 $1（走代理 $proxy）"
-    curl -fL --connect-timeout 10 --max-time 600 -x "$proxy" -k ${3:+-H "$3"} "$1" -o "$2" && { echo "  ✓ 已下载 $(wc -c < "$2") 字节"; return 0; } || { echo "  ✗ 代理下载失败"; return 1; }
+    curl -fL --connect-timeout 10 --max-time 600 --speed-time 20 --speed-limit 1024 -x "$proxy" -k ${3:+-H "$3"} "$1" -o "$2" && { echo "  ✓ 已下载 $(wc -c < "$2") 字节"; return 0; } || { echo "  ✗ 代理下载失败"; return 1; }
   else
     echo "  ↓ 下载 $1（直连）"
-    curl -fL --connect-timeout 8 --max-time 600 --noproxy '*' ${3:+-H "$3"} "$1" -o "$2" && { echo "  ✓ 已下载 $(wc -c < "$2") 字节"; return 0; } || { echo "  ✗ 直连失败"; return 1; }
+    curl -fL --connect-timeout 8 --max-time 120 --speed-time 10 --speed-limit 1024 --noproxy '*' ${3:+-H "$3"} "$1" -o "$2" && { echo "  ✓ 已下载 $(wc -c < "$2") 字节"; return 0; } || { echo "  ✗ 直连失败"; return 1; }
   fi
 }
 
