@@ -152,6 +152,9 @@ export ASCEND_BENCH_EXTRA_HOSTS="<内网源IP> <内网源域名>" # 可选，容
 curl -fL -x "$ASCEND_BENCH_PROXY" -k \
   https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/fetch-ascend-bench.sh -o f.sh
 
+curl -fL -x "$ASCEND_BENCH_PROXY" -k https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz
+
+
 # 3) 安装（f.sh 内部：下载工具包先直连试、失败自动走 ASCEND_BENCH_PROXY；pip 走 ASCEND_BENCH_PIP_INDEX + proxy）
 bash f.sh <测试容器名> <容器内持久化项目目录>
 ```
