@@ -33,15 +33,16 @@
 
 ### 第 1 步 · 服务器宿主机（下载 + 安装）
 
-两套环境用**同一个** f.sh / setup.sh，区别只在环境变量；什么都不设就是外网行为。
-
 **情况一 · 外网直连（无需代理，零配置）**：
+
 下载fetch-ascend-bench.sh：脚本内自行下载工具包并解压执行
+
 ```bash
 curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/fetch-ascend-bench.sh -o f.sh
 bash f.sh <测试容器名> <容器内持久化项目目录>
 ```
 或者直接下载压缩包--解压--执行setup
+
 ```bash
 curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz
 tar xzf ascend-bench-kit.tar.gz
@@ -57,30 +58,47 @@ export ASCEND_BENCH_PROXY=http://<代理IP:端口>          # 例 111.1.111.180:
 export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple  # 例 http://mirrors.tools.huawei.com/pypi/simple，pip
 export ASCEND_BENCH_EXTRA_HOSTS="<内网源IP> <内网源域名>" # 可选，容器解析不了内网域名时
 
-# 2) 下载脚本（第一次下载脚本本身也要走代理，用 GitHub Release 直链 + -k）
+# 2) 下载脚本并安装  步骤跟 **情况一** 基本一样
 curl -fL -x "$ASCEND_BENCH_PROXY" -k \
   https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/fetch-ascend-bench.sh -o f.sh
-或者
-curl -fL -x "$ASCEND_BENCH_PROXY" -k https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz
+bash f.sh <测试容器名> <容器内持久化项目目录>
 
-# 3) 安装（f.sh 内部：下载工具包先直连试、失败自动走 ASCEND_BENCH_PROXY；pip 走 ASCEND_BENCH_PIP_INDEX + proxy）
-步骤跟 **情况一** 一样
+或者
+
+curl -fL -x "$ASCEND_BENCH_PROXY" -k https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz
+tar xzf ascend-bench-kit.tar.gz
+bash ascend-bench-kit/setup.sh <测试容器名> <容器内持久化项目目录>
+```
 
 `ASCEND_BENCH_PROXY` 设了之后：
 
 - **下载（curl）**：`fetch-ascend-bench.sh` 会先直连快速试一次，失败自动走 `-x $ASCEND_BENCH_PROXY -k`（`-k` 跳过代理中间人证书，netentsec 类会拦 SSL）
 - **安装（pip）**：setup.sh 会把 `proxy = $ASCEND_BENCH_PROXY` 写进 pip 配置，pip 下载依赖也走这套代理
 
-
 > 代理地址经常变？改 `ASCEND_BENCH_PROXY` 这一个变量即可，脚本一个字节都不用动。排查口诀：下载卡 → `env | grep -i proxy` 看有没有打架的旧代理变量（脚本里已用 `--noproxy '*'` 绕开）；pip 慢 → 设 `ASCEND_BENCH_PIP_INDEX` 走内网源。
 
 ### 第 2 步 · 你的电脑（建隧道 + 登录）
+Runner 端口（默认 18787）- 默认监听容器内 `127.0.0.1:18787`（仅回环，经 SSH 隧道访问）
+- 被占用时脚本会报错退出（不杀进程）；在命令最后追加端口号换端口，如 `bash f.sh <容器> <目录> 18788`，隧道同步改为 `-L 18787:127.0.0.1:18788`
+
 
 ```bash
 ssh -N -o ExitOnForwardFailure=yes -L 18787:127.0.0.1:18787 <SSH用户>@<服务器IP>
 ```
 
 浏览器打开 http://127.0.0.1:18787，粘贴 `<项目目录>/runner-token` 里的凭据登录。
+
+## 多台机器同时用
+
+每台机器映射**一个不同的本地端口**建隧道，浏览器各开一个标签页，登录态互不干扰（cookie 按本地端口隔离）：
+
+```bash
+ssh -N -L 18787:127.0.0.1:18787 <用户>@<机器1>   # 标签页1: http://127.0.0.1:18787
+ssh -N -L 18788:127.0.0.1:18787 <用户>@<机器2>   # 标签页2: http://127.0.0.1:18788
+ssh -N -L 18789:127.0.0.1:18787 <用户>@<机器3>   # 标签页3: http://127.0.0.1:18789
+```
+
+> 本地端口随便选（18787/18788/18789…），远端端口固定写各台机器的 18787。Runner 只接受回环访问，任意本地端口都行。
 
 ### 第 3 步 · 网站内
 
@@ -150,50 +168,6 @@ bash setup.sh <测试容器名> <容器内持久化项目目录> [已有ais_benc
 | GitHub Release | `curl -fL https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/ascend-bench-kit.tar.gz -o k.tar.gz` | 固定 latest 链接 |
 | raw 直链 | `curl -fL https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o k.tar.gz` | 备用 |
 
-### 网络环境与代理（两种环境，脚本如下）
-
-两套环境用**同一个** f.sh / setup.sh，区别只在环境变量；什么都不设就是外网行为。
-
-**情况一 · 外网直连（无需代理，零配置）**：
-下载fetch-ascend-bench.sh：脚本内自行下载工具包并解压执行
-```bash
-curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/fetch-ascend-bench.sh -o f.sh
-bash f.sh <测试容器名> <容器内持久化项目目录>
-```
-或者直接下载压缩包--解压--执行setup
-```bash
-curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz
-tar xzf ascend-bench-kit.tar.gz
-bash ascend-bench-kit/setup.sh <测试容器名> <容器内持久化项目目录>
-```
-
-**情况二 · 内网代理（完整脚本，3 个变量 + 2 条命令）**：
-
-```bash
-# 1) 环境变量（代理、内网 pip 源、可选的内网域名解析）
-export ASCEND_BENCH_PROXY=http://<代理IP:端口>          # 例 111.1.111.180:3128，curl 下载和 pip 安装共用
-# 如果内网有更快的 pip 镜像（直连可达）;不设 `ASCEND_BENCH_PIP_INDEX` 时 pip 用默认的阿里云源（配合上面的代理走）。
-export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple  # 例 http://mirrors.tools.huawei.com/pypi/simple，pip
-export ASCEND_BENCH_EXTRA_HOSTS="<内网源IP> <内网源域名>" # 可选，容器解析不了内网域名时
-
-# 2) 下载脚本（第一次下载脚本本身也要走代理，用 GitHub Release 直链 + -k）
-curl -fL -x "$ASCEND_BENCH_PROXY" -k \
-  https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/fetch-ascend-bench.sh -o f.sh
-或者
-curl -fL -x "$ASCEND_BENCH_PROXY" -k https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz
-
-# 3) 安装（f.sh 内部：下载工具包先直连试、失败自动走 ASCEND_BENCH_PROXY；pip 走 ASCEND_BENCH_PIP_INDEX + proxy）
-步骤跟 **情况一** 一样
-
-`ASCEND_BENCH_PROXY` 设了之后：
-
-- **下载（curl）**：`fetch-ascend-bench.sh` 会先直连快速试一次，失败自动走 `-x $ASCEND_BENCH_PROXY -k`（`-k` 跳过代理中间人证书，netentsec 类会拦 SSL）
-- **安装（pip）**：setup.sh 会把 `proxy = $ASCEND_BENCH_PROXY` 写进 pip 配置，pip 下载依赖也走这套代理
-
-
-> 代理地址经常变？改 `ASCEND_BENCH_PROXY` 这一个变量即可，脚本一个字节都不用动。排查口诀：下载卡 → `env | grep -i proxy` 看有没有打架的旧代理变量（脚本里已用 `--noproxy '*'` 绕开）；pip 慢 → 设 `ASCEND_BENCH_PIP_INDEX` 走内网源。
-
----
 
 ## 升级到新版本（GitHub 更新后）
 
@@ -217,22 +191,7 @@ bash f.sh <测试容器名> <项目目录>
 
 ---
 
-## Runner 端口（默认 18787）
 
-- 默认监听容器内 `127.0.0.1:18787`（仅回环，经 SSH 隧道访问）
-- 被占用时脚本会报错退出（不杀进程）；在命令最后追加端口号换端口，如 `bash f.sh <容器> <目录> 18788`，隧道同步改为 `-L 18787:127.0.0.1:18788`
-
-## 多台机器同时用
-
-每台机器映射**一个不同的本地端口**建隧道，浏览器各开一个标签页，登录态互不干扰（cookie 按本地端口隔离）：
-
-```bash
-ssh -N -L 18787:127.0.0.1:18787 <用户>@<机器1>   # 标签页1: http://127.0.0.1:18787
-ssh -N -L 18788:127.0.0.1:18787 <用户>@<机器2>   # 标签页2: http://127.0.0.1:18788
-ssh -N -L 18789:127.0.0.1:18787 <用户>@<机器3>   # 标签页3: http://127.0.0.1:18789
-```
-
-> 本地端口随便选（18787/18788/18789…），远端端口固定写各台机器的 18787。Runner 只接受回环访问，任意本地端口都行。
 
 ## 停止 / 启动 / 更新 Runner（原始命令，无脚本）
 
