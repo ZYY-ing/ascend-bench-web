@@ -167,7 +167,10 @@ bash f.sh <容器名> <容器内项目目录> 18787
 
 - 容器内解析不了内网域名（pip 报 `Temporary failure in name resolution`）时，再加
   `export ASCEND_BENCH_EXTRA_HOSTS="<内网源IP> <内网源域名>"`。
-- 18787 被**非 Runner** 进程占用时，改用 `18788` 安装（第三个参数），并在交付时把隧道右侧同步改成 18788。
+- 18787 被**非 Runner** 进程占用时换端口，注意两个脚本的参数位置**不一样**：
+  - 用 `f.sh`：`bash f.sh <容器名> <项目目录> 18788`（第 3 个参数就是端口）
+  - 用 `setup.sh`：`bash setup.sh <容器名> <项目目录> "" 18788`（第 3 个参数是"已有 ais_bench 路径"，**必须留空**；端口是第 4 个）
+  - 交付时把隧道右侧端口同步改成同一个值（18788）。
 - 首次安装含 AISBench 依赖（opencv/pyarrow 等，几十 MB），**慢不等于卡住**：看 pip 进度条是否在动。已装过的环境会复用，通常 1 分钟内完成。
 
 ## 阶段 6 · 验收 + 交付
@@ -221,6 +224,7 @@ docker exec <容器名> tail -n 15 <项目目录>/logs/runner.log
 | 拉的还是旧代码 | jsdelivr `@main` 有缓存（约 12 小时）。改用 Release 直链 `.../releases/latest/download/ascend-bench-kit.tar.gz`，或对 `@main` 路径执行 `curl https://purge.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/dist/ascend-bench-kit.tar.gz`（GET，不是 POST） |
 | pip 很慢 / 长时间不动 | 内网设 `ASCEND_BENCH_PIP_INDEX=http://mirrors.tools.huawei.com/pypi/simple`；pip 已内置 `--timeout 30 --retries 5`，opencv 已钉版本 |
 | setup 报「端口已被占用」 | 旧 Runner 还在：`docker exec <容器> pkill -f '[r]unner.py'` 后再装 |
+| setup.sh 报 `ais_bench 不存在或不可执行: 18787` | 端口传错位置：`setup.sh` 第 3 个参数是 ais_bench 路径，端口是第 4 个 → `bash setup.sh <容器> <目录> "" 18787` |
 | 容器之前停过，文件还在 | `docker start <容器>` 后重跑 `bash f.sh <容器> <目录>`，环境会复用，不用重装 |
 | 网站打不开 / 隧道报 Connection refused | 核对隧道右侧端口是否与 Runner 实际端口一致（默认 18787），`ss -tlnp \| grep 18787` 在服务器上确认 |
 | 步骤1 检查连接失败 Errno 111 | 端口填错或服务只绑了别的网卡；先 `curl <IP>:<端口>/v1/models` 能通再填 |
@@ -229,9 +233,15 @@ docker exec <容器名> tail -n 15 <项目目录>/logs/runner.log
 ## 附录 · 脚本参数
 
 ```bash
-bash f.sh <测试容器名> <容器内持久化项目目录> [Runner端口,默认18787]      # 下载 + 安装
-bash setup.sh <测试容器名> <容器内持久化项目目录> [已有ais_bench路径] [Runner端口]  # 只安装
+# 下载 + 安装（端口是第 3 个参数）
+bash f.sh <测试容器名> <容器内持久化项目目录> [Runner端口,默认18787]
+
+# 只安装（第 3 个参数是已有 ais_bench 绝对路径，没有就写 ""；端口是第 4 个）
+bash setup.sh <测试容器名> <容器内持久化项目目录> ["已有ais_bench路径"或""] [Runner端口,默认18787]
 ```
+
+> ⚠️ **两个脚本的端口位置不同，最容易搞错**：`f.sh` 端口是第 3 个；`setup.sh` 端口是第 4 个，第 3 个是 ais_bench 路径。
+> 把端口写成 `setup.sh <容器> <目录> 18787` 会被当成 ais_bench 路径，直接报 `ais_bench 不存在或不可执行: 18787`。setup.sh 换端口的正确写法是 `bash setup.sh <容器> <目录> "" 18787`。
 
 | 环境变量 | 用途 |
 |---|---|
