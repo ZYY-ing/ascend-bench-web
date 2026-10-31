@@ -2,6 +2,12 @@
 
 给**已经拉起并验证过的 vLLM 服务**（Ascend 服务器）提供的网页版模型评测工作台。浏览器操作，精度 / 性能测试全程无需改代码。
 
+> ## 🚀 **想省事？把这个喂给 AI agent，让它自动装好**
+>
+> 把仓库根目录的 **[`SKILL.md`](SKILL.md)** 直接贴给你的 AI agent（或告诉它"按 SKILL.md 装 ascend-bench"），它会自动完成：问你机器 IP 和容器方案 → 检测内外网与端口占用 → 下载安装 → 起 Runner → 把 SSH 隧道命令和 token 路径交给你。
+>
+> **手动安装**按下面的步骤走即可。
+
 ---
 
 ## 前提
@@ -27,21 +33,25 @@
 - 一个**持久化 RW 目录**：安装命令里的 `<容器内持久化项目目录>`，宿主机和容器都要能看到它（bind-mount 或 `-v` 挂载），记录和结果都写在这里
 - 容器内有 `python3`、`curl`
 - 容器内能读到 **tokenizer / 权重路径**（网站步骤1 填写，用于生成测试数据，只读挂载即可）
+
+**vLLM 服务容器**（起服务的那个容器）需要：模型权重目录只读挂载即可（如 `/mnt/weight/...`）。这是起服务时本来就挂好的，**不需要为本工具额外挂任何东西**。
+
+> 说明：之前遇到的"重启 vLLM 后挂载"问题，不是加了新挂载——是我把项目目录 `rm -rf` 了但容器还 bind-mount 着它，导致挂载指向已删除的旧目录；`docker restart` 让容器重新解析了已有的 bind-mount 而已。
+
 ---
 
 ## 快速开始（3 步）
 
 ### 第 1 步 · 服务器宿主机（下载 + 安装）
 
-**情况一 · 外网直连（无需代理，零配置）**：
-
-下载fetch-ascend-bench.sh：脚本内自行下载工具包并解压执行
+**方式 A · 一键（推荐）**：
 
 ```bash
 curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/fetch-ascend-bench.sh -o f.sh
 bash f.sh <测试容器名> <容器内持久化项目目录>
 ```
-或者直接下载压缩包--解压--执行setup
+
+**方式 B · 手动（先下压缩包再装）**：
 
 ```bash
 curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz
@@ -49,55 +59,13 @@ tar xzf ascend-bench-kit.tar.gz
 bash ascend-bench-kit/setup.sh <测试容器名> <容器内持久化项目目录>
 ```
 
-**情况二 · 内网代理（完整脚本，3 个变量 + 2 条命令）**：
-
-
-##### 1) 环境变量（代理、内网 pip 源、可选的内网域名解析）
-```bash
-export ASCEND_BENCH_PROXY=http://<代理IP:端口>          # 例 111.1.111.180:3128，curl 下载和 pip 安装共用
-# 如果内网有更快的 pip 镜像（直连可达）;不设 `ASCEND_BENCH_PIP_INDEX` 时 pip 用默认的阿里云源（配合上面的代理走）。
-export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple  # 例 http://mirrors.tools.huawei.com/pypi/simple，pip
-export ASCEND_BENCH_EXTRA_HOSTS="<内网源IP> <内网源域名>" # 可选，容器解析不了内网域名时
-```
-##### 2) 下载脚本并安装  
-步骤跟 **情况一** 基本一样
-```bash
-curl -fL -x "$ASCEND_BENCH_PROXY" -k \
-  https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/fetch-ascend-bench.sh -o f.sh
-bash f.sh <测试容器名> <容器内持久化项目目录>
-```
-或者
-```bash
-curl -fL -x "$ASCEND_BENCH_PROXY" -k https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz
-tar xzf ascend-bench-kit.tar.gz
-bash ascend-bench-kit/setup.sh <测试容器名> <容器内持久化项目目录>
-```
-
->`ASCEND_BENCH_PROXY` 设了之后：
-
->- **下载（curl）**：`fetch-ascend-bench.sh` 会先直连快速试一次，失败自动走 `-x $ASCEND_BENCH_PROXY -k`（`-k` 跳过代理中间人证书，netentsec 类会拦 SSL）
->- **安装（pip）**：setup.sh 会把 `proxy = $ASCEND_BENCH_PROXY` 写进 pip 配置，pip 下载依赖也走这套代理
-
-> 代理地址经常变？改 `ASCEND_BENCH_PROXY` 这一个变量即可，脚本一个字节都不用动。排查口诀：下载卡 → `env | grep -i proxy` 看有没有打架的旧代理变量（脚本里已用 `--noproxy '*'` 绕开）；pip 慢 → 设 `ASCEND_BENCH_PIP_INDEX` 走内网源。
-
 ### 第 2 步 · 你的电脑（建隧道 + 登录）
-Runner 端口（默认 18787 监听容器内 `127.0.0.1:18787`）
 
-在本机powershell内执行：
 ```bash
-ssh -N -o ExitOnForwardFailure=yes -L <本地端口>:127.0.0.1:18787 <SSH用户>@<服务器IP>
+ssh -N -o ExitOnForwardFailure=yes -L 18787:127.0.0.1:18787 <SSH用户>@<服务器IP>
 ```
-浏览器打开 http://127.0.0.1:18787  ，粘贴服务器 `<项目目录>/runner-token` 里的凭据登录。
 
-#### 若多台机器同时用
-
-每台机器映射**一个不同的本地端口**建隧道，浏览器各开一个标签页，登录态互不干扰（cookie 按本地端口隔离）：
-```bash
-ssh -N -L 18787:127.0.0.1:18787 <用户>@<机器1>   # 标签页1: http://127.0.0.1:18787
-ssh -N -L 18788:127.0.0.1:18787 <用户>@<机器2>   # 标签页2: http://127.0.0.1:18788
-ssh -N -L 18789:127.0.0.1:18787 <用户>@<机器3>   # 标签页3: http://127.0.0.1:18789
-```
-> 本地端口随便选（18787/18788/18789…），远端端口固定写各台机器的 18787。Runner 只接受回环访问，任意本地端口都行。
+浏览器打开 http://127.0.0.1:18787，粘贴 `<项目目录>/runner-token` 里的凭据登录。
 
 ### 第 3 步 · 网站内
 
@@ -106,18 +74,17 @@ ssh -N -L 18789:127.0.0.1:18787 <用户>@<机器3>   # 标签页3: http://127.0.
 - **步骤3 配置参数**：样本数、并发、max_out_len → 开始测试
 
 ---
-# 备注：
-## 下载途径
 
-压缩包/fetch-ascend-bench.sh下载固定地址（下面以压缩包为例）：
+## 两个脚本的区别
 
-| 通道 | 命令 | 特点 |
-|---|---|---|
-| jsdelivr CDN | `curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/dist/ascend-bench-kit.tar.gz -o k.tar.gz` | 国内快，推荐 |
-| GitHub Release | `curl -fL https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/ascend-bench-kit.tar.gz -o k.tar.gz` | 固定 latest 链接，获取最新代码 |
-| raw 直链 | `curl -fL https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o k.tar.gz` | 备用 |
+| 脚本 | 作用 |
+|---|---|
+| `fetch-ascend-bench.sh` | **下载 + 安装**。先下载压缩包、解压，再调用 setup.sh |
+| `setup.sh` | **只安装**。不做任何下载，只做环境检查、拷文件、建 AISBench 环境、起 Runner |
 
->如果想要拉最近更新的工具包，建议用github通道直接下载压缩包并执行setup,因为fetch-ascend-bench.sh内部调用jsdelivr受延迟缓存影响不一定能拉到最新代码。
+所以：**有网直接跑方式 A（fetch）**；已经有解压好的 `ascend-bench-kit/` 目录时，只用 `bash ascend-bench-kit/setup.sh <容器> <目录>` 即可，不需要 fetch。
+
+---
 
 ## 脚本参数说明
 
@@ -133,7 +100,13 @@ bash f.sh <测试容器名> <容器内持久化项目目录> [Runner端口,默�
 | `<容器内持久化项目目录>` | 是 | 容器内持久化 RW 挂载的 Linux 绝对路径，如 `/home/aisbench_web` |
 | `[Runner端口]` | 否 | Runner 在容器内监听的回环端口，默认 `18787` |
 
->- 被占用时脚本会报错退出（不杀进程）；在命令最后追加端口号换端口，如 `bash f.sh <容器> <目录> 18788`，隧道同步改为 `-L 18787:127.0.0.1:18788`
+环境变量（可选，都不设即外网行为）：
+
+| 变量 | 说明 |
+|---|---|
+| `ASCEND_BENCH_PROXY` | 内网下载代理，如 `http://141.2.239.180:3128`（curl 下载 + pip 安装共用） |
+| `ASCEND_BENCH_PIP_INDEX` | pip 源，默认 `https://mirrors.aliyun.com/pypi/simple` |
+| `ASCEND_BENCH_EXTRA_HOSTS` | 可选，格式 `"IP 域名"`，写入容器 /etc/hosts（解析不了内网源域名时） |
 
 ### setup.sh —— 只安装（不做任何下载）
 
@@ -148,6 +121,63 @@ bash setup.sh <测试容器名> <容器内持久化项目目录> [已有ais_benc
 | `[已有ais_bench绝对路径]` | 否 | 已有 AISBench 环境时复用（跳过安装）；留空则自动装到 `<项目目录>/bench-venv` |
 | `[Runner端口]` | 否 | 默认 `18787` |
 
+环境变量：同 fetch-ascend-bench.sh（`ASCEND_BENCH_PROXY` / `ASCEND_BENCH_PIP_INDEX` / `ASCEND_BENCH_EXTRA_HOSTS`）。
+
+---
+
+## 怎么在服务器上下载这个仓库的文件
+
+压缩包固定地址（任选其一，都是同一份文件）：
+
+| 通道 | 命令 | 特点 |
+|---|---|---|
+| jsdelivr CDN | `curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/dist/ascend-bench-kit.tar.gz -o k.tar.gz` | 国内快，推荐 |
+| GitHub Release | `curl -fL https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/ascend-bench-kit.tar.gz -o k.tar.gz` | 固定 latest 链接 |
+| raw 直链 | `curl -fL https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o k.tar.gz` | 备用 |
+
+### 网络环境与代理（两种环境，脚本如下）
+
+两套环境用**同一个** f.sh / setup.sh，区别只在环境变量；什么都不设就是外网行为。
+
+**情况一 · 外网直连（无需代理，零配置）**：
+
+```bash
+curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/fetch-ascend-bench.sh -o f.sh
+bash f.sh <测试容器名> <容器内持久化项目目录>
+```
+
+**情况二 · 内网代理（完整脚本，3 个变量 + 2 条命令）**：
+
+```bash
+# 1) 环境变量（代理、内网 pip 源、可选的内网域名解析）
+export ASCEND_BENCH_PROXY=http://<代理IP:端口>          # 例 141.2.239.180:3128，curl 下载和 pip 安装共用
+export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple  # 例 mirrors.tools.huawei.com，pip 走内网源
+export ASCEND_BENCH_EXTRA_HOSTS="<内网源IP> <内网源域名>" # 可选，容器解析不了内网域名时
+
+# 2) 下载脚本（第一次下载脚本本身也要走代理，用 GitHub Release 直链 + -k）
+curl -fL -x "$ASCEND_BENCH_PROXY" -k \
+  https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/fetch-ascend-bench.sh -o f.sh
+
+# 3) 安装（f.sh 内部：下载工具包先直连试、失败自动走 ASCEND_BENCH_PROXY；pip 走 ASCEND_BENCH_PIP_INDEX + proxy）
+bash f.sh <测试容器名> <容器内持久化项目目录>
+```
+
+`ASCEND_BENCH_PROXY` 设了之后：
+
+- **下载（curl）**：`fetch-ascend-bench.sh` 会先直连快速试一次，失败自动走 `-x $ASCEND_BENCH_PROXY -k`（`-k` 跳过代理中间人证书，netentsec 类会拦 SSL）
+- **安装（pip）**：setup.sh 会把 `proxy = $ASCEND_BENCH_PROXY` 写进 pip 配置，pip 下载依赖也走这套代理
+
+可选：如果内网有更快的 pip 镜像（直连可达），再加一条：
+
+```bash
+export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple   # 可选，pip 走内网镜像（更快），http 源自动加 trusted-host
+```
+
+不设 `ASCEND_BENCH_PIP_INDEX` 时 pip 用默认的阿里云源（配合上面的代理走）。
+
+> 代理地址经常变？改 `ASCEND_BENCH_PROXY` 这一个变量即可，脚本一个字节都不用动。排查口诀：下载卡 → `env | grep -i proxy` 看有没有打架的旧代理变量（脚本里已用 `--noproxy '*'` 绕开）；pip 慢 → 设 `ASCEND_BENCH_PIP_INDEX` 走内网源。
+
+
 ---
 
 ## 升级到新版本（GitHub 更新后）
@@ -156,18 +186,42 @@ bash setup.sh <测试容器名> <容器内持久化项目目录> [已有ais_benc
 
 ```bash
 docker exec <测试容器名> pkill -f '[r]unner.py'   # 停掉旧 runner（否则端口被占用会报错）
+curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/fetch-ascend-bench.sh -o f.sh
+bash f.sh <测试容器名> <项目目录>
 ```
-之后执行前面的 **快速开始：第一步**
 
 脚本会自动：备份旧的 scripts/website → 覆盖新文件 → 复用已有的 AISBench 环境（pip 对已装包显示"已满足"，很快）。历史测试记录（`results/jobs/`）保留不删。
 
 只有想彻底重装 AISBench 环境时才手动清：`docker exec <容器> rm -rf <项目目录>/bench-venv`。
 
+## 迁移到其他服务器
+
+**不要直接拷贝安装好的文件夹**——bench-venv 里是 editable install + system-site-packages，绑定了原容器的 Python 路径和绝对路径，换个机器会坏。
+
+正确做法：压缩包只下一次，`scp` 到各台宿主机，每台跑一遍 `bash ascend-bench-kit/setup.sh <容器> <目录>`（或方式 A 的 fetch）。venv 每台单独装（约 3~5 分钟，匹配各自容器的 Python），网站步骤1 按各台机器的服务 IP 重新填写即可。
+
 ---
+
+## Runner 端口（默认 18787）
+
+- 默认监听容器内 `127.0.0.1:18787`（仅回环，经 SSH 隧道访问）
+- 被占用时脚本会报错退出（不杀进程）；在命令最后追加端口号换端口，如 `bash f.sh <容器> <目录> 18788`，隧道同步改为 `-L 18787:127.0.0.1:18788`
+
+## 多台机器同时用
+
+每台机器映射**一个不同的本地端口**建隧道，浏览器各开一个标签页，登录态互不干扰（cookie 按本地端口隔离）：
+
+```bash
+ssh -N -L 18787:127.0.0.1:18787 <用户>@<机器1>   # 标签页1: http://127.0.0.1:18787
+ssh -N -L 18788:127.0.0.1:18787 <用户>@<机器2>   # 标签页2: http://127.0.0.1:18788
+ssh -N -L 18789:127.0.0.1:18787 <用户>@<机器3>   # 标签页3: http://127.0.0.1:18789
+```
+
+> 本地端口随便选（18787/18788/18789…），远端端口固定写各台机器的 18787。Runner 只接受回环访问，任意本地端口都行。
 
 ## 停止 / 启动 / 更新 Runner（原始命令，无脚本）
 
-以下命令都在宿主机执行，`<容器名>`、`<项目目录>` 就是安装时传的那两个，`<端口>` 为runner内端口（默认 `18787`）。
+以下命令都在宿主机执行，`<容器名>`、`<项目目录>` 就是安装时传的那两个，`<端口>` 换成你要的（默认 `18787`）。
 
 **停止 Runner**
 
@@ -187,19 +241,23 @@ docker exec -e ASCEND_BENCH_HOME=<项目目录> -e ASCEND_BENCH_CONTAINER=<容�
 docker exec <容器名> curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:<端口>/
 ```
 
-几种常见情况，各对应上面几条命令：
+三种常见情况，各对应上面几条命令：
+
+- **代码更新了，拉最新代码重新部署**：先 `docker exec <容器名> pkill -f '[r]unner.py'` 停掉旧 runner，再 `bash f.sh <容器名> <项目目录>`（见「升级到新版本」）。
 - **容器之前停了，重新进容器部署**：`docker start <容器名>` 启动容器，再用「在指定端口启动」命令拉起 Runner。文件都在持久化挂载上，不用重装。
 - **手动 pkill 过，只想重新拉起**：直接跑「在指定端口启动」命令即可。
 
----
-## 迁移到其他服务器
+## 容器删除/停止后的恢复（不用重装）
 
-**不要直接拷贝安装好的文件夹**——bench-venv 里是 editable install + system-site-packages，绑定了原容器的 Python 路径和绝对路径，换个机器会坏。
+安装目录在**持久化挂载**上（setup.sh 强制要求），所以容器被删/停后文件和环境都还在，只是 Runner 进程没了。恢复只需两步：
 
-正确做法：压缩包只下一次，`scp` 到各台宿主机，每台跑一遍 `bash ascend-bench-kit/setup.sh <容器> <目录>`（或f.sh）。
+```bash
+# 1. 重建/重启容器（保留原来的项目目录挂载，同一个镜像）
+# 2. 重跑一次安装脚本（秒级：检测到已有 AISBench 环境会自动跳过安装，只更新文件并拉起 Runner）
+bash ascend-bench-kit/setup.sh <容器名> <项目目录>
+```
 
-**一般一个网段配置一次就行，网段内机器互联**
-
+项目目录被删了才需要真正重装。换**不同镜像**的容器时（Python 版本变了），先清掉旧 venv 再重装：`docker exec <新容器> rm -rf <项目目录>/bench-venv`。
 
 ---
 
