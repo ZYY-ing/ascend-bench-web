@@ -2,3 +2,16 @@ __pycache__/
 *.pyc
 outputs/
 *.tmp
+# Local installations and credentials are never public source.
+.env
+.env.*
+!.env.example
+runner-token
+runner-config.json
+pip.conf
+bench-venv/
+cache/
+results/
+*-key.pem
+id_rsa*
+id_ed25519*

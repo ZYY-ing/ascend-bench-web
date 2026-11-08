@@ -2,6 +2,8 @@
 
 给**已经拉起并验证过的 vLLM 服务**（Ascend 服务器）提供的网页版模型评测工作台。浏览器操作，精度 / 性能测试全程无需改代码。
 
+公开发布与敏感文件边界见 [SECURITY.md](SECURITY.md)。
+
 > ## 🚀 **想省事？把这个喂给 AI agent，让它自动装好**
 >
 > 把仓库根目录的 **[`SKILL.md`](SKILL.md)** 直接贴给你的 AI agent（或告诉它"按 SKILL.md 装 ascend-bench"），它会自动完成：问你机器 IP 和容器方案 → 检测内外网与端口占用 → 下载安装 → 起 Runner → 把 SSH 隧道命令和 token 路径交给你。
@@ -108,7 +110,7 @@ bash f.sh <测试容器名> <容器内持久化项目目录> [Runner端口,默�
 
 | 变量 | 说明 |
 |---|---|
-| `ASCEND_BENCH_PROXY` | 内网下载代理，如 `http://141.2.239.180:3128`（curl 下载 + pip 安装共用） |
+| `ASCEND_BENCH_PROXY` | 内网下载代理，如 `http://192.0.2.20:3128`（curl 下载 + pip 安装共用） |
 | `ASCEND_BENCH_PIP_INDEX` | pip 源，默认 `https://mirrors.aliyun.com/pypi/simple` |
 | `ASCEND_BENCH_EXTRA_HOSTS` | 可选，格式 `"IP 域名"`，写入容器 /etc/hosts（解析不了内网源域名时） |
 
@@ -154,8 +156,8 @@ bash f.sh <测试容器名> <容器内持久化项目目录>
 
 ```bash
 # 1) 环境变量（代理、内网 pip 源、可选的内网域名解析）
-export ASCEND_BENCH_PROXY=http://<代理IP:端口>          # 例 141.2.239.180:3128，curl 下载和 pip 安装共用
-export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple  # 例 mirrors.tools.huawei.com，pip 走内网源
+export ASCEND_BENCH_PROXY=http://<代理IP:端口>          # 例 192.0.2.20:3128，curl 下载和 pip 安装共用
+export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple  # 例 pypi.internal.example，pip 走内网源
 export ASCEND_BENCH_EXTRA_HOSTS="<内网源IP> <内网源域名>" # 可选，容器解析不了内网域名时
 
 # 2) 下载脚本（第一次下载脚本本身也要走代理，用 GitHub Release 直链 + -k）
@@ -180,7 +182,7 @@ bash ascend-bench-kit/setup.sh <测试容器名> <容器内持久化项目目录
 
 `ASCEND_BENCH_PROXY` 设了之后：
 
-- **下载（curl）**：`fetch-ascend-bench.sh` 会先直连快速试一次，失败自动走 `-x $ASCEND_BENCH_PROXY -k`（`-k` 跳过代理中间人证书，netentsec 类会拦 SSL）
+- **下载（curl）**：`fetch-ascend-bench.sh` 会先直连快速试一次，失败自动走 `-x $ASCEND_BENCH_PROXY -k`（`-k` 跳过代理中间人证书，enterprise proxy 类会拦 SSL）
 - **安装（pip）**：setup.sh 会把 `proxy = $ASCEND_BENCH_PROXY` 写进 pip 配置，pip 下载依赖也走这套代理
 
 可选：如果内网有更快的 pip 镜像（直连可达），再加一条：
