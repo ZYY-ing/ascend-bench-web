@@ -299,29 +299,6 @@ bash ascend-bench-kit/setup.sh <容器名> <项目目录>
 - **网站打不开**：隧道是否保持、Runner 是否在跑（`docker exec <容器> pgrep -f runner.py`）
 - **下载卡住**：见「网络环境与代理」
 
-
-## 当前测试逻辑与参数（2026-11-08）
-
-部署入口保持原样：下载工具包 → 对自行准备的 host 网络容器执行 `setup.sh` → 建 SSH 隧道 → 浏览器用 Runner token 登录。不依赖共享中心、不新增管理员网页，不改动模型服务。
-
-本次修复随当前 main 的工具包发布；旧 Release 不自动变成新版，CDN 也可能缓存旧包。需要立即取得当前修复时，按上面的方式 B 从 GitHub main 直链下载；可同时下载 `dist/ascend-bench-kit.tar.gz.sha256`，用 `sha256sum -c` 校验。安装命令、容器方案和隧道步骤不变。
-
-本次修复集中在测试内部：
-
-- 精度只提供 `all`，性能只提供 `perf`；`perf + reuse` 保留 AISBench 原生复用可视化行为，不在额外参数覆盖 mode。
-- 并发写入 `models[0].batch_size`，不传不通用的 `--batch-size`。Chat 与 Completions 使用对应原生 API 类，`stream` 原值透传。
-- 稳态指标选择原生 `StablePerfMetricCalculator`，pressure 控制按时长发请求；两个开关独立。原生算法找不到稳态窗口时如实报错，不人为补造结果。
-- retry 原值写入 AISBench，不加一。超时默认原生不限时，可自定义每次请求时限；删除额外的固定两小时任务上限。异常断连会唤醒读取等待，进入原生重试，不给不限时配置偷偷加 deadline。
-- 最大输出可配置 225280 tokens，并发可填写 1000；实际支持取决于服务上下文、接口及资源。精度题目不截断、不填充，不新增客户端 max_model_len 拦截。
-- 预热数量支持 0–正式样本数，沿用原生重放数据集前 N 条；默认输出跟随正式最大输出，可单独改。单独的预热输出上限通过运行时适配生效，不冒充上游通用命令行选项；预热不计正式评分与性能。
-- 大性能数据生成用独立进程、异步进度、有界写入和完整缓存校验。只读 tokenizer 不互锁，同一缓存目录写入互锁；独立 Runner 之间没有共享中心的全局模型服务排他调度，测试前仍需检查外部任务。
-- 默认合并原生 debug 的 Warmup、Progress、POST/RECV/FAIL/FIN 日志；非 debug 收集真实子任务日志。轮询只读取有界日志尾部，完整 execution.log、config.py、run.sh 和原生结果保留。
-- 任务状态跟随原生退出码，缺评分、失败请求和长度差异作为提示，不重写原始指标。确认进程组无活跃进程后自动空闲，僵尸进程不计作仍在测试。
-
-额外参数按页面“格式与支持参数”分三类：模型顶层（如 `request_rate=2`）、生成字典（如 `top_p=0.95,top_k=20`）、CLI（如 `debug=false,max_num_workers=2`）。已有表单参数不重复填写。其他生成参数用 `generation_kwargs.参数名=JSON值`；例如 `generation_kwargs.reasoning_effort="low"`，须由目标服务支持。不能借这个前缀添加任意模型顶层参数、命令或 Python 代码。
-
-每次任务保存真实配置和带运行环境的 `run.sh`；复现不要只复制裸命令。性能数据集缓存会区分输入、输出、条目数、种子、前缀比例、接口与 tokenizer 指纹，不能仅凭文件夹名判断是否复用。
-
 ## 源码维护与本地验证
 
 可编辑 Runner 源码在 `runner-src/scripts/`、`runner-src/website/`；`runner-src/setup.sh` 保留原安装实现。固定 AISBench 源码与基础数据仍随 `dist/ascend-bench-kit.tar.gz` 分发。修改测试逻辑后重新构建再安装：
