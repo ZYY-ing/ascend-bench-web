@@ -44,29 +44,12 @@ echo "== 尝试 jsdelivr CDN 下载"
 try_url "https://cdn.jsdelivr.net/gh/$REPO@main/dist/ascend-bench-kit.tar.gz" "$WORK/ascend-bench-kit.tar.gz" "" && OK=1 || echo "== jsdelivr 失败"
 
 if [ "$OK" = 0 ]; then
-  echo "== 尝试 GitHub API 下载"
-  # 取 release 资产 URL（同样先直连再代理）
-  KURL=""
-  if [ -n "$PROXY" ]; then
-    KURL="$(curl -fsSL --connect-timeout 10 --max-time 40 -x "$PROXY" -k "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null \
-      | python3 -c 'import json,sys
-try:
-    print([a["url"] for a in json.load(sys.stdin).get("assets",[]) if a["name"]=="ascend-bench-kit.tar.gz"][0])
-except Exception:
-    pass' 2>/dev/null)" || true
-  else
-    KURL="$(curl -fsSL --connect-timeout 10 --max-time 40 --noproxy '*' "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null \
-      | python3 -c 'import json,sys
-try:
-    print([a["url"] for a in json.load(sys.stdin).get("assets",[]) if a["name"]=="ascend-bench-kit.tar.gz"][0])
-except Exception:
-    pass' 2>/dev/null)" || true
-  fi
-  if [ -n "$KURL" ]; then
-    try_url "$KURL" "$WORK/ascend-bench-kit.tar.gz" "Accept: application/octet-stream" && OK=1 || echo "== GitHub API 失败"
-  else
-    echo "== GitHub API 不可达"
-  fi
+  echo "== 尝试 GitHub 当前 main 下载"
+  try_url "https://raw.githubusercontent.com/$REPO/main/dist/ascend-bench-kit.tar.gz" "$WORK/ascend-bench-kit.tar.gz" "" && OK=1 || echo "== GitHub raw 失败"
+fi
+if [ "$OK" = 0 ]; then
+  echo "== 尝试 GitHub 当前源码 API 下载"
+  try_url "https://api.github.com/repos/$REPO/contents/dist/ascend-bench-kit.tar.gz?ref=main" "$WORK/ascend-bench-kit.tar.gz" "Accept: application/vnd.github.raw+json" && OK=1 || echo "== GitHub API 失败"
 fi
 [ "$OK" = 1 ] || { echo "所有下载途径均失败。内网环境请 export ASCEND_BENCH_PROXY=http://<代理IP:端口> 后重试；或手动下载压缩包后：tar xzf ascend-bench-kit.tar.gz && bash ascend-bench-kit/setup.sh $CONTAINER $TARGET"; exit 1; }
 

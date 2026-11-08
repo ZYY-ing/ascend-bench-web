@@ -138,7 +138,7 @@ bash setup.sh <测试容器名> <容器内持久化项目目录> [已有ais_benc
 | 通道 | 命令 | 特点 |
 |---|---|---|
 | jsdelivr CDN | `curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/dist/ascend-bench-kit.tar.gz -o k.tar.gz` | 国内快，推荐 |
-| GitHub Release | `curl -fL https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/ascend-bench-kit.tar.gz -o k.tar.gz` | 固定 latest 链接 |
+| GitHub 源码 API | `curl -fL -H 'Accept: application/vnd.github.raw+json' 'https://api.github.com/repos/ZYY-ing/ascend-bench-web/contents/dist/ascend-bench-kit.tar.gz?ref=main' -o k.tar.gz` | 当前 main 工具包 |
 | raw 直链 | `curl -fL -k https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o k.tar.gz` | 当前 main 工具包 |
 
 ### 网络环境与代理（两种环境，脚本如下）
@@ -160,9 +160,9 @@ export ASCEND_BENCH_PROXY=http://<代理IP:端口>          # 例 192.0.2.20:312
 export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple  # 例 pypi.internal.example，pip 走内网源
 export ASCEND_BENCH_EXTRA_HOSTS="<内网源IP> <内网源域名>" # 可选，容器解析不了内网域名时
 
-# 2) 下载脚本（第一次下载脚本本身也要走代理，用 GitHub Release 直链 + -k）
+# 2) 下载脚本（第一次下载脚本本身也要走代理，使用当前 main）
 curl -fL -x "$ASCEND_BENCH_PROXY" -k \
-  https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/fetch-ascend-bench.sh -o f.sh
+  https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/fetch-ascend-bench.sh -o f.sh
 
 # 3) 安装（f.sh 内部：下载工具包先直连试、失败自动走 ASCEND_BENCH_PROXY；pip 走 ASCEND_BENCH_PIP_INDEX + proxy）
 bash f.sh <测试容器名> <容器内持久化项目目录>
