@@ -42,7 +42,7 @@
 
 ## 快速开始（3 步）
 
-### 第 1 步 · 服务器宿主机（下载 + 安装）
+### 第 1 步 · 服务器宿主机（下载 + 安装） 若需代理见下文[网络环境与代理](https://github.com/ZYY-ing/ascend-bench-web/edit/main/README.md#%E7%BD%91%E7%BB%9C%E7%8E%AF%E5%A2%83%E4%B8%8E%E4%BB%A3%E7%90%86%E4%B8%A4%E7%A7%8D%E7%8E%AF%E5%A2%83%E8%84%9A%E6%9C%AC%E5%A6%82%E4%B8%8B)
 
 **方式 A · 一键（推荐）**：
 
