@@ -163,7 +163,7 @@ bash ascend-bench-kit/setup.sh <容器名> <容器内项目目录> "" 18787
 
 ```bash
 export ASCEND_BENCH_PROXY=http://<代理IP:端口>
-export ASCEND_BENCH_PIP_INDEX=http://pypi.internal.example/pypi/simple
+export ASCEND_BENCH_PIP_INDEX=http://mirrors.tools.huawei.com/pypi/simple
 cd /tmp
 curl -fL -x "$ASCEND_BENCH_PROXY" \
   https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz || exit 1
@@ -237,7 +237,7 @@ docker exec -w / <容器名> tail -n 15 <项目目录>/logs/runner.log
 |---|---|
 | 安装时下载卡住十几秒后失败重试 | 正常：脚本先直连快速失败再重试/降级；内网请确认已 `export ASCEND_BENCH_PROXY` |
 | 拉的还是旧代码 | 按阶段 5 从 GitHub main 直链成对下载工具包和 SHA256 文件并校验；CDN 可能缓存旧包，旧 Release 不保证包含当前 main 修复。安装后比对解压包与容器内源码哈希 |
-| pip 很慢 / 长时间不动 | 内网设 `ASCEND_BENCH_PIP_INDEX=http://pypi.internal.example/pypi/simple`；pip 已内置 `--timeout 30 --retries 5`，opencv 已钉版本 |
+| pip 很慢 / 长时间不动 | 内网设 `ASCEND_BENCH_PIP_INDEX=http://mirrors.tools.huawei.com/pypi/simple`；pip 已内置 `--timeout 30 --retries 5`，opencv 已钉版本 |
 | setup 报「端口已被占用」 | 旧 Runner 还在：`docker exec <容器> pkill -f '[r]unner.py'` 后再装 |
 | setup.sh 报 `ais_bench 不存在或不可执行: 18787` | 端口传错位置：`setup.sh` 第 3 个参数是 ais_bench 路径，端口是第 4 个 → `bash setup.sh <容器> <目录> "" 18787` |
 | 容器之前停过，文件还在 | `docker start <容器>` 后重跑 `bash f.sh <容器> <目录>`，环境会复用，不用重装 |
@@ -261,7 +261,7 @@ bash setup.sh <测试容器名> <容器内持久化项目目录> ["已有ais_ben
 | 环境变量 | 用途 |
 |---|---|
 | `ASCEND_BENCH_PROXY` | 内网代理，curl 下载与 pip 安装共用 |
-| `ASCEND_BENCH_PIP_INDEX` | pip 源，默认阿里云；内网固定 `http://pypi.internal.example/pypi/simple` |
+| `ASCEND_BENCH_PIP_INDEX` | pip 源，默认阿里云；内网固定 `http://mirrors.tools.huawei.com/pypi/simple` |
 | `ASCEND_BENCH_EXTRA_HOSTS` | `"IP 域名"`，写入容器 `/etc/hosts`，容器解析不了内网域名时用 |
 
 测试记录归档在 `<项目目录>/results/jobs/<任务ID>/`，每条任务独立目录，不会互相覆盖。

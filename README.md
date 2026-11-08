@@ -157,7 +157,7 @@ bash f.sh <测试容器名> <容器内持久化项目目录>
 ```bash
 # 1) 环境变量（代理、内网 pip 源、可选的内网域名解析）
 export ASCEND_BENCH_PROXY=http://<代理IP:端口>          # 例 192.0.2.20:3128，curl 下载和 pip 安装共用
-export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple  # 例 pypi.internal.example，pip 走内网源
+export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple  # 例 mirrors.tools.huawei.com，pip 走内网源
 export ASCEND_BENCH_EXTRA_HOSTS="<内网源IP> <内网源域名>" # 可选，容器解析不了内网域名时
 
 # 2) 下载脚本（第一次下载脚本本身也要走代理，使用当前 main）
