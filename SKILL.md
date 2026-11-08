@@ -61,7 +61,7 @@ done
 echo "== host paths =="; ls -d /home/*/*/scripts/runner.py 2>/dev/null | head
 echo "== port 18787 =="; ss -tlnp 2>/dev/null | grep -w 18787 || echo PORT_FREE
 echo "== network =="
-for u in https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/dist/ascend-bench-kit.tar.gz https://api.github.com/; do
+for u in https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz.sha256; do
   printf '%s ' "$u"; curl -sI -o /dev/null -w '%{http_code}\n' --connect-timeout 6 --noproxy '*' "$u"
 done
 ```
@@ -146,23 +146,32 @@ docker exec <容器名> pkill -f '[r]unner.py' || true
 sleep 2
 ```
 
+按 [README 方式 B](README.md#快速开始3-步) 下载当前 main 的工具包及校验文件；不要把旧 Release 当作当前 main，也不要用 CDN 下载成功代替版本核验。`setup.sh` 的安装方式和参数不变。
+
 **外网直连**（勘察显示可直连）：
 
 ```bash
 cd /tmp
-curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/fetch-ascend-bench.sh -o f.sh
-bash f.sh <容器名> <容器内项目目录> 18787
+curl -fL https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz || exit 1
+curl -fL https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz.sha256 -o ascend-bench-kit.tar.gz.sha256 || exit 1
+sha256sum -c ascend-bench-kit.tar.gz.sha256 || exit 1
+tar xzf ascend-bench-kit.tar.gz || exit 1
+bash ascend-bench-kit/setup.sh <容器名> <容器内项目目录> "" 18787
 ```
 
-**内网**（勘察显示直连不通）——三个变量 + 两条命令必须在**同一个 shell** 里：
+**内网**（勘察显示直连不通）——环境变量、下载和安装在**同一个 shell** 里：
 
 ```bash
 export ASCEND_BENCH_PROXY=http://<代理IP:端口>
 export ASCEND_BENCH_PIP_INDEX=http://mirrors.tools.huawei.com/pypi/simple
 cd /tmp
-curl -fL -x "$ASCEND_BENCH_PROXY" -k \
-  https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/fetch-ascend-bench.sh -o f.sh
-bash f.sh <容器名> <容器内项目目录> 18787
+curl -fL -x "$ASCEND_BENCH_PROXY" \
+  https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz || exit 1
+curl -fL -x "$ASCEND_BENCH_PROXY" \
+  https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz.sha256 -o ascend-bench-kit.tar.gz.sha256 || exit 1
+sha256sum -c ascend-bench-kit.tar.gz.sha256 || exit 1
+tar xzf ascend-bench-kit.tar.gz || exit 1
+bash ascend-bench-kit/setup.sh <容器名> <容器内项目目录> "" 18787
 ```
 
 - 容器内解析不了内网域名（pip 报 `Temporary failure in name resolution`）时，再加
@@ -172,19 +181,25 @@ bash f.sh <容器名> <容器内项目目录> 18787
   - 用 `setup.sh`：`bash setup.sh <容器名> <项目目录> "" 18788`（第 3 个参数是"已有 ais_bench 路径"，**必须留空**；端口是第 4 个）
   - 交付时把隧道右侧端口同步改成同一个值（18788）。
 - 首次安装含 AISBench 依赖（opencv/pyarrow 等，几十 MB），**慢不等于卡住**：看 pip 进度条是否在动。已装过的环境会复用，通常 1 分钟内完成。
+- SHA256 不匹配时停止，不安装该包；main 正在更新时可重新成对下载，或将两个 URL 的 `main` 同时改成同一个确认过的 commit。下载报证书错误时配置可信 CA，不以 `-k` 跳过校验。
 
 ## 阶段 6 · 验收 + 交付
 
-验收（三条都要过）：
+安装验收（示例使用远端 18787；自定义端口时同步替换）：
 
 ```bash
-docker exec <容器名> curl -s -o /dev/null -w 'site=%{http_code}\n' http://127.0.0.1:18787/
-docker exec <容器名> grep -o 'small>v[0-9.]*' <项目目录>/website/index.html | tail -1
-docker exec <容器名> tail -n 15 <项目目录>/logs/runner.log
+docker exec -w / <容器名> curl --noproxy '*' --fail --silent --show-error --max-time 10 -o /dev/null -w 'site=%{http_code}\n' http://127.0.0.1:18787/
+docker exec -w / <容器名> test -s <项目目录>/runner-token
+sha256sum ascend-bench-kit/scripts/runner.py ascend-bench-kit/website/config.js
+docker exec -w / <容器名> sha256sum <项目目录>/scripts/runner.py <项目目录>/website/config.js
+docker exec -w / <容器名> tail -n 15 <项目目录>/logs/runner.log
 ```
 
-- `site=200` 才算起成功；不是 200 → `tail -50 logs/runner.log` 找原因，**不要盲目反复重启**。
-- 日志里应能看到「Runner 启动中 / 本机隧道 / 打开」的启动回显块。
+- 要求站点返回 `site=200`、token 文件非空、容器内两份文件各自的 SHA256 与刚解压的对应文件一致。不要再依赖网页 `<small>v...` 文本判断版本。
+- 日志应有「Runner 已启动：http://127.0.0.1:<端口>」，且无本次启动的异常堆栈；不要求日志里出现安装命令终端上的隧道交付回显。站点未就绪时查启动日志，不盲目反复重启。
+- 安装验收不等于模型测试通过。用户已授权功能测试且服务无其他测试占用时，再从网页连接服务、生成小数据集并提交小批量任务；核对 `config.py`、`command.txt`、`run.sh`、原生结果与结束后空闲状态。不要仅凭 HTTP 200 或退出码 0 宣称所有请求成功，须同时看失败请求数、提示和精度评分/性能表。
+- 当前精度为 `all`、性能为 `perf`；`perf + reuse` 保留原生行为。并发在模型配置里，不能要求命令出现 `--batch-size`；retry 原值透传、默认超时不限时，稳态与 pressure 独立。额外参数与限制以 [README](README.md#当前测试逻辑与参数2026-11-08) 为准。
+- 日志轮询只显示尾部，检查完整日志应下载导出或读取任务目录的 `execution.log`，不能因网页缺少开头判断源文件丢失。已有实机验证范围见 [验收记录](docs/VERIFICATION.md)；不把历史小批量、配置验证或数据生成结果当成本次全量测试通过。
 
 然后给用户这段（把尖括号换成实际值）：
 
@@ -221,7 +236,7 @@ docker exec <容器名> tail -n 15 <项目目录>/logs/runner.log
 | 现象 | 处理 |
 |---|---|
 | 安装时下载卡住十几秒后失败重试 | 正常：脚本先直连快速失败再重试/降级；内网请确认已 `export ASCEND_BENCH_PROXY` |
-| 拉的还是旧代码 | jsdelivr `@main` 有缓存（约 12 小时）。改用 Release 直链 `.../releases/latest/download/ascend-bench-kit.tar.gz`，或对 `@main` 路径执行 `curl https://purge.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/dist/ascend-bench-kit.tar.gz`（GET，不是 POST） |
+| 拉的还是旧代码 | 按阶段 5 从 GitHub main 直链成对下载工具包和 SHA256 文件并校验；CDN 可能缓存旧包，旧 Release 不保证包含当前 main 修复。安装后比对解压包与容器内源码哈希 |
 | pip 很慢 / 长时间不动 | 内网设 `ASCEND_BENCH_PIP_INDEX=http://mirrors.tools.huawei.com/pypi/simple`；pip 已内置 `--timeout 30 --retries 5`，opencv 已钉版本 |
 | setup 报「端口已被占用」 | 旧 Runner 还在：`docker exec <容器> pkill -f '[r]unner.py'` 后再装 |
 | setup.sh 报 `ais_bench 不存在或不可执行: 18787` | 端口传错位置：`setup.sh` 第 3 个参数是 ais_bench 路径，端口是第 4 个 → `bash setup.sh <容器> <目录> "" 18787` |
