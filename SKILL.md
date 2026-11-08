@@ -72,7 +72,7 @@ done
 |---|---|
 | 任一 URL 返回 `200/302/403` | 能直连外网 → 不需要代理 |
 | 两者都是 `000` | 内网 → 必须问代理 |
-| `RUNNER_RUNNING <c>` | 这个容器已装且 Runner 在跑，属 B 的"更新分支"，升级前先 `pkill` |
+| `RUNNER_RUNNING <c>` | 这个容器已装且 Runner 在跑，属 B 的"更新分支"，下载校验后再停止已核验的空闲 Runner |
 | `INSTALLED <c> <dir>` | 已装过，`<dir>` 就是项目目录 |
 | `PORT_FREE` | 远端 Runner 端口可用 |
 
@@ -131,48 +131,28 @@ docker exec <容器名> pgrep -f '[r]unner.py' >/dev/null && echo RUNNER_ALIVE |
 |---|---|
 | `NOT_INSTALLED` | 按阶段 5 正常安装 |
 | `INSTALLED` + `NO_RUNNER` | 覆盖更新后启动（阶段 5） |
-| `INSTALLED` + `RUNNER_ALIVE` | 先 `pkill` 再覆盖更新启动（阶段 5） |
+| `INSTALLED` + `RUNNER_ALIVE` | 下载校验后停止已核验的空闲 Runner，再更新（阶段 5） |
 | 容器 `false`（停着） | 先 `docker start`；文件在持久化挂载上不会丢，不用重装 |
 
 覆盖更新会先备份旧 `scripts/website` 到 `<项目目录>/backups/`，`results/jobs/` 历史记录保留。
 
 ## 阶段 5 · 安装
 
-**先把远端 Runner 端口的旧占用清掉**（仅限旧 Runner，其他进程不要动）：
+**先下载并校验，再停止已核验的空闲 Runner**。非 Runner 进程占用端口时换端口，不强停。下载步骤见后文；安装前核对占用者：
 
 ```bash
 ss -tlnp | grep -w 18787        # 看占用者
-docker exec <容器名> pkill -f '[r]unner.py' || true
-sleep 2
+# 仅在下载校验已完成、Runner 空闲且 PID/项目目录身份已核对后：
+docker exec <容器名> kill -TERM <已核验的Runner_PID>
 ```
 
 按 [README 方式 B](README.md#快速开始3-步) 下载当前 main 的工具包及校验文件；不要把旧 Release 当作当前 main，也不要用 CDN 下载成功代替版本核验。`setup.sh` 的安装方式和参数不变。
 
-**外网直连**（勘察显示可直连）：
+**外网直连**：执行 [README 方式 B](README.md#快速开始3-步)，下载最新版 `f.sh`，再运行 `bash f.sh --download-only ./ascend-bench-download`。脚本自动查询 GitHub main、下载和校验最新包；不要求用户填写提交号。
 
-```bash
-cd /tmp
-curl -fL https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz || exit 1
-curl -fL https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz.sha256 -o ascend-bench-kit.tar.gz.sha256 || exit 1
-sha256sum -c ascend-bench-kit.tar.gz.sha256 || exit 1
-tar xzf ascend-bench-kit.tar.gz || exit 1
-bash ascend-bench-kit/setup.sh <容器名> <容器内项目目录> "" 18787
-```
+**内网**：先在同一个终端设置实际 `ASCEND_BENCH_PROXY`，以及 `ASCEND_BENCH_PIP_INDEX=http://mirrors.tools.huawei.com/pypi/simple`，按 README 内网命令下载脚本，再运行下载模式。首次下载脚本也要显式传 `-x "$ASCEND_BENCH_PROXY"`。保持用户既有下载证书策略。
 
-**内网**（勘察显示直连不通）——环境变量、下载和安装在**同一个 shell** 里：
-
-```bash
-export ASCEND_BENCH_PROXY=http://<代理IP:端口>
-export ASCEND_BENCH_PIP_INDEX=http://mirrors.tools.huawei.com/pypi/simple
-cd /tmp
-curl -fL -x "$ASCEND_BENCH_PROXY" \
-  https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz || exit 1
-curl -fL -x "$ASCEND_BENCH_PROXY" \
-  https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz.sha256 -o ascend-bench-kit.tar.gz.sha256 || exit 1
-sha256sum -c ascend-bench-kit.tar.gz.sha256 || exit 1
-tar xzf ascend-bench-kit.tar.gz || exit 1
-bash ascend-bench-kit/setup.sh <容器名> <容器内项目目录> "" 18787
-```
+下载成功后到 `ascend-bench-download` 目录校验并解压，再在空闲窗口核对、停止对应 Runner 后执行 `setup.sh`。下载失败不得继续使用残留旧包；不要向用户索要一串 SHA 来完成日常更新。自动版本查询不可用时诊断网络/代理，不盲装 CDN@main 的旧包。
 
 - 容器内解析不了内网域名（pip 报 `Temporary failure in name resolution`）时，再加
   `export ASCEND_BENCH_EXTRA_HOSTS="<内网源IP> <内网源域名>"`。
@@ -181,7 +161,7 @@ bash ascend-bench-kit/setup.sh <容器名> <容器内项目目录> "" 18787
   - 用 `setup.sh`：`bash setup.sh <容器名> <项目目录> "" 18788`（第 3 个参数是"已有 ais_bench 路径"，**必须留空**；端口是第 4 个）
   - 交付时把隧道右侧端口同步改成同一个值（18788）。
 - 首次安装含 AISBench 依赖（opencv/pyarrow 等，几十 MB），**慢不等于卡住**：看 pip 进度条是否在动。已装过的环境会复用，通常 1 分钟内完成。
-- SHA256 不匹配时停止，不安装该包；main 正在更新时可重新成对下载，或将两个 URL 的 `main` 同时改成同一个确认过的 commit。下载报证书错误时配置可信 CA，不以 `-k` 跳过校验。
+- SHA256 不匹配时停止，不安装该包；重新运行新版脚本，让脚本自动选择同一版本的其他源，不要求用户手工填写版本。下载报证书错误时配置可信 CA，不以 `-k` 跳过校验。
 
 ## 阶段 6 · 验收 + 交付
 
@@ -236,7 +216,7 @@ docker exec -w / <容器名> tail -n 15 <项目目录>/logs/runner.log
 | 现象 | 处理 |
 |---|---|
 | 安装时下载卡住十几秒后失败重试 | 正常：脚本先直连快速失败再重试/降级；内网请确认已 `export ASCEND_BENCH_PROXY` |
-| 拉的还是旧代码 | 按阶段 5 从 GitHub main 直链成对下载工具包和 SHA256 文件并校验；CDN 可能缓存旧包，旧 Release 不保证包含当前 main 修复。安装后比对解压包与容器内源码哈希 |
+| 拉的还是旧代码 | 重新下载新版 f.sh，按 README 自动下载模式获取最新版并校验；不使用 CDN@main。安装后比对解压包与容器内源码哈希 |
 | pip 很慢 / 长时间不动 | 内网设 `ASCEND_BENCH_PIP_INDEX=http://mirrors.tools.huawei.com/pypi/simple`；pip 已内置 `--timeout 30 --retries 5`，opencv 已钉版本 |
 | setup 报「端口已被占用」 | 旧 Runner 还在：`docker exec <容器> pkill -f '[r]unner.py'` 后再装 |
 | setup.sh 报 `ais_bench 不存在或不可执行: 18787` | 端口传错位置：`setup.sh` 第 3 个参数是 ais_bench 路径，端口是第 4 个 → `bash setup.sh <容器> <目录> "" 18787` |
