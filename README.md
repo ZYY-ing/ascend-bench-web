@@ -42,7 +42,9 @@
 
 ## 快速开始（3 步）
 
-### 第 1 步 · 服务器宿主机（下载 + 安装） 若需代理见下文[网络环境与代理](https://github.com/ZYY-ing/ascend-bench-web/edit/main/README.md#%E7%BD%91%E7%BB%9C%E7%8E%AF%E5%A2%83%E4%B8%8E%E4%BB%A3%E7%90%86%E4%B8%A4%E7%A7%8D%E7%8E%AF%E5%A2%83%E8%84%9A%E6%9C%AC%E5%A6%82%E4%B8%8B)
+### 第 1 步 · 服务器宿主机（下载 + 安装）
+
+若需代理，见下文[网络环境与代理](#网络环境与代理两种环境脚本如下)。
 
 **方式 A · 一键（推荐）**：
 
@@ -54,10 +56,12 @@ bash f.sh <测试容器名> <容器内持久化项目目录>
 **方式 B · 手动（先下压缩包再装）**：
 
 ```bash
-curl -fL https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz
+curl -fL -k https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz
 tar xzf ascend-bench-kit.tar.gz
 bash ascend-bench-kit/setup.sh <测试容器名> <容器内持久化项目目录>
 ```
+
+上面的 `-k` 沿用原有下载方式，跳过 HTTPS 证书校验。需要代理时使用下文带 `-x "$ASCEND_BENCH_PROXY"` 的命令；普通 `curl` 不会自动读取 `ASCEND_BENCH_PROXY`。
 
 ### 第 2 步 · 你的电脑（建隧道 + 登录）
 
@@ -133,7 +137,7 @@ bash setup.sh <测试容器名> <容器内持久化项目目录> [已有ais_benc
 |---|---|---|
 | jsdelivr CDN | `curl -fL https://cdn.jsdelivr.net/gh/ZYY-ing/ascend-bench-web@main/dist/ascend-bench-kit.tar.gz -o k.tar.gz` | 国内快，推荐 |
 | GitHub Release | `curl -fL https://github.com/ZYY-ing/ascend-bench-web/releases/latest/download/ascend-bench-kit.tar.gz -o k.tar.gz` | 固定 latest 链接 |
-| raw 直链 | `curl -fL https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o k.tar.gz` | 备用 |
+| raw 直链 | `curl -fL -k https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o k.tar.gz` | 当前 main 工具包 |
 
 ### 网络环境与代理（两种环境，脚本如下）
 
@@ -160,6 +164,18 @@ curl -fL -x "$ASCEND_BENCH_PROXY" -k \
 
 # 3) 安装（f.sh 内部：下载工具包先直连试、失败自动走 ASCEND_BENCH_PROXY；pip 走 ASCEND_BENCH_PIP_INDEX + proxy）
 bash f.sh <测试容器名> <容器内持久化项目目录>
+```
+
+若使用快速开始的**方式 B（手动下载当前 main 工具包）**，在同一 shell 设置上述代理变量后执行：
+
+```bash
+curl -fL -k -x "$ASCEND_BENCH_PROXY" \
+  https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz -o ascend-bench-kit.tar.gz || exit 1
+curl -fL -k -x "$ASCEND_BENCH_PROXY" \
+  https://raw.githubusercontent.com/ZYY-ing/ascend-bench-web/main/dist/ascend-bench-kit.tar.gz.sha256 -o ascend-bench-kit.tar.gz.sha256 || exit 1
+sha256sum -c ascend-bench-kit.tar.gz.sha256 || exit 1
+tar xzf ascend-bench-kit.tar.gz || exit 1
+bash ascend-bench-kit/setup.sh <测试容器名> <容器内持久化项目目录>
 ```
 
 `ASCEND_BENCH_PROXY` 设了之后：
