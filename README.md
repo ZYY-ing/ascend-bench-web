@@ -293,9 +293,10 @@ bash ascend-bench-kit/setup.sh <容器名> <项目目录>
 - **端口占用报错**：
   OSError: [Errno 98] Address already in use
   
-  容器内 18787 端口已被占用（可能有其他 Runner 或服务）。可停掉旧 Runner 或换端口重装。
+  容器内 18787 端口已被占用（可能有其他 Runner 或服务）。如果确定是你之前的容器可停掉旧 Runner， 否则换端口重装。
+
+  执行docker exec <测试容器名> pkill -f '[r]unner.py'停掉之后重新执行f.sh或者setup.sh
   
-  执行docker exec <测试容器名> pkill -f '[r]unner.py'之后重新执行f.sh或者setup.sh
 - **网站打不开**：隧道是否保持、Runner 是否在跑（`docker exec <容器> pgrep -f runner.py`）
 - **下载卡住**：见「网络环境与代理」
 
