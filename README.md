@@ -56,9 +56,9 @@ bash ascend-bench-kit/setup.sh <测试容器名> <容器内持久化项目目录
 
 ##### 1) 环境变量（代理、内网 pip 源、可选的内网域名解析）
 ```bash
-export ASCEND_BENCH_PROXY=http://<代理IP:端口>          # 例 192.0.2.20:3128，curl 下载和 pip 安装共用
+export ASCEND_BENCH_PROXY=http://<代理IP:端口>          # 例 xxx.xxx.xxx.xxx:1234，curl 下载和 pip 安装共用
 # 如果内网有更快的 pip 镜像（直连可达）;不设 `ASCEND_BENCH_PIP_INDEX` 时 pip 用默认的阿里云源（配合上面的代理走）。
-export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple  # 例 http://mirrors.tools.huawei.com/pypi/simple，pip
+export ASCEND_BENCH_PIP_INDEX=http://<内网pip源>/simple
 export ASCEND_BENCH_EXTRA_HOSTS="<内网源IP> <内网源域名>" # 可选，容器解析不了内网域名时
 ```
 ##### 2) 下载脚本并安装
